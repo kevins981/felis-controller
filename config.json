@@ -1,0 +1,22 @@
+{
+	"type": "status_change",
+	"status": "configuring",
+	"mem": {
+		"32": 16,
+		"64": 32,
+		"128": 2,
+		"256": 1,
+		"512": 1,
+		"1024": 1
+	},
+	"nodes": [
+		{
+			"name": "host1",
+			"worker": {"host": "127.0.0.1", "port": 1080}
+		},
+		{
+			"name": "host2",
+			"worker": {"host": "127.0.0.1", "port": 1081}
+		}
+	]
+}
