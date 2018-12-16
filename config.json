@@ -1,22 +1,32 @@
 {
-	"type": "status_change",
-	"status": "configuring",
-	"mem": {
-		"32": 16,
-		"64": 32,
-		"128": 2,
-		"256": 1,
-		"512": 1,
-		"1024": 1
-	},
-	"nodes": [
-		{
-			"name": "host1",
-			"worker": {"host": "127.0.0.1", "port": 1080}
-		},
-		{
-			"name": "host2",
-			"worker": {"host": "127.0.0.1", "port": 1081}
-		}
-	]
+  "type": "status_change",
+  "status": "configuring",
+  "mem": {
+    "32": 8,
+    "64": 12,
+    "128": 1,
+    "256": 1,
+    "512": 1,
+    "1024": 1
+  },
+  "nodes": [
+    {
+      "name": "host1",
+      "worker": {"host": "127.0.0.1", "port": 1080},
+      "index_shipper": {"host": "127.0.0.1", "port": 43451}
+    },
+    {
+      "name": "host2",
+      "worker": {"host": "127.0.0.1", "port": 1081},
+      "index_shipper": {"host": "127.0.0.1", "port": 43452}
+    }
+  ],
+  "tpcc": {
+    "hot_warehouses": [5],
+    "offload_nodes": [1]
+  },
+  "controller": {
+    "http_port": 8666,
+    "rpc_port": 3144
+  }
 }

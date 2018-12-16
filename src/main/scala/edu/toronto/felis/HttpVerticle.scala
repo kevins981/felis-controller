@@ -7,13 +7,17 @@ import io.vertx.lang.scala.{ ScalaVerticle, VertxExecutionContext }
 import io.vertx.scala.core.eventbus.Message
 import io.vertx.scala.ext.web.Router
 import io.vertx.scala.core.{Context, Vertx}
-import io.vertx.scala.ext.web.handler.BodyHandler
+import io.vertx.scala.ext.web.handler.{BodyHandler, StaticHandler }
 import java.io.File
 import java.nio.file.{ FileSystems, Files, Path, Paths, StandardWatchEventKinds, WatchKey }
 import scala.collection.mutable.MutableList
 
 import scala.concurrent.Future
 import scala.util.{Success, Failure}
+
+object HttpVerticle {
+  var HttpPort = 8666
+}
 
 class HttpVerticle extends ScalaVerticle {
 
@@ -31,6 +35,10 @@ class HttpVerticle extends ScalaVerticle {
     router
       .get("/config/")
       .handler(_.response().end(FelisVerticle.configFileBuffer))
+
+    router
+      .route("/static/*")
+      .handler(StaticHandler.create().setDirectoryListing(true))
 
     router
       .post("/broadcast/")
@@ -59,7 +67,7 @@ class HttpVerticle extends ScalaVerticle {
     vertx
       .createHttpServer()
       .requestHandler(router.accept _)
-      .listenFuture(8666, "0.0.0.0")
+      .listenFuture(HttpVerticle.HttpPort, "0.0.0.0")
   }
 }
 

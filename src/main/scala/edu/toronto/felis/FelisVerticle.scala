@@ -60,9 +60,16 @@ class FelisNode(val sock: NetSocket, implicit val executionContext: ExecutionCon
 
 object FelisVerticle {
   var configFileBuffer: Buffer = _
+  var RpcPort = 3144
   def loadConfig(configFile: String): Unit = {
     val loadBuffer = Buffer.buffer(Files.readAllBytes(Paths.get(configFile)))
     configFileBuffer = loadBuffer.toJsonObject().toBuffer()
+    val config = configFileBuffer.toJsonObject()
+    val httpPort = config.getJsonObject("controller").getInteger("http_port")
+    RpcPort = config.getJsonObject("controller").getInteger("rpc_port")
+    println(s"Listening on $RpcPort")
+    println(s"Browser access on $httpPort")
+    HttpVerticle.HttpPort = httpPort
   }
 }
 
@@ -129,7 +136,7 @@ class FelisVerticle extends ScalaVerticle with Handler[NetSocket] {
     vertx
       .createNetServer()
       .connectHandler(this)
-      .listenFuture(3144, "0.0.0.0")
+      .listenFuture(FelisVerticle.RpcPort, "0.0.0.0")
   }
 }
 
