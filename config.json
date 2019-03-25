@@ -2,12 +2,12 @@
   "type": "status_change",
   "status": "configuring",
   "mem": {
-    "32": 2048,
-    "64": 2048,
-    "128": 2048,
+    "32": 8192,
+    "64": 8192,
+    "128": 1024,
     "256": 128,
-    "512": 128,
-    "1024": 64
+    "512": 256,
+    "1024": 128
   },
   "nodes": [
     {
@@ -22,7 +22,7 @@
     }
   ],
   "tpcc": {
-    "hot_warehouses": [5],
+    "hot_warehouses": [9],
     "offload_nodes": [1]
   },
   "controller": {
