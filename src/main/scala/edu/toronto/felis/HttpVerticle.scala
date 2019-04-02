@@ -134,6 +134,6 @@ object Main extends App {
   }
 
   parseArgs()
-  watchSourceCodeChange("src")
+  // watchSourceCodeChange("src")
   startAllServices()
 }
