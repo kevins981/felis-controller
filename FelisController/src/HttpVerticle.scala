@@ -29,16 +29,8 @@ class HttpVerticle extends ScalaVerticle {
       .route().handler(BodyHandler.create())
 
     router
-      .get("/hello/")
-      .handler(_.response().end("Hello World!\n"))
-
-    router
       .get("/config/")
       .handler(_.response().end(FelisVerticle.configFileBuffer))
-
-    router
-      .route("/static/*")
-      .handler(StaticHandler.create().setDirectoryListing(true))
 
     router
       .post("/broadcast/")
@@ -71,45 +63,16 @@ class HttpVerticle extends ScalaVerticle {
   }
 }
 
-object Main extends App {
-  val vertx = Vertx.vertx()
-  implicit val executionContext = VertxExecutionContext(vertx.getOrCreateContext())
-  val watcher = FileSystems.getDefault().newWatchService()
+object Server {
+  var vertx: Vertx = null
 
-  def shutdown(): Unit = {
-    watcher.close()
+  def stop(): Unit = {
     vertx.close()
-  }
-
-  def watchRecursively(dir: File): Unit = {
-    if (!dir.isDirectory()) {
-      return
-    }
-
-    val path = dir.toPath()
-    path.register(watcher,
-      StandardWatchEventKinds.ENTRY_CREATE,
-      StandardWatchEventKinds.ENTRY_DELETE,
-      StandardWatchEventKinds.ENTRY_MODIFY)
-
-    for (sub <- dir.listFiles()) {
-      watchRecursively(sub)
-    }
-  }
-
-  def watchSourceCodeChange(dir: String): Unit = {
-    watchRecursively(new File(dir))
-
-    vertx.periodicStream(50).handler({ _ =>
-      if (watcher.poll() != null) {
-        println("File Changed, so exit the server.")
-        println("You should use this with sbt's ~run task.")
-        shutdown()
-      }
-    })
+    Thread.sleep(1000)
   }
 
   def startAllServices(): Unit = {
+    implicit val executionContext = VertxExecutionContext(vertx.getOrCreateContext())
     val deployTasks = List(
       vertx.deployVerticleFuture(ScalaVerticle.nameForVerticle[HttpVerticle]),
       vertx.deployVerticleFuture(ScalaVerticle.nameForVerticle[FelisVerticle]),
@@ -120,11 +83,20 @@ object Main extends App {
       }
       case Failure(t) => {
         t.printStackTrace()
-        shutdown()
+        stop()
       }
     }
   }
 
+  def start(): Unit = {
+    // use the default config.json
+    FelisVerticle.loadConfig("config.json")
+    vertx = Vertx.vertx()
+    startAllServices()
+  }
+}
+
+object Main extends App {
   def parseArgs(): Unit = {
     if (args.length != 1) {
       println(s"missing <config file> parameter")
@@ -133,7 +105,7 @@ object Main extends App {
     FelisVerticle.loadConfig(args(0))
   }
 
+  // as main method
   parseArgs()
-  // watchSourceCodeChange("src")
-  startAllServices()
+  Server.startAllServices()
 }
