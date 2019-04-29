@@ -107,5 +107,6 @@ object Main extends App {
 
   // as main method
   parseArgs()
+  Server.vertx = Vertx.vertx()
   Server.startAllServices()
 }
