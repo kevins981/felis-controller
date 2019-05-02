@@ -10,7 +10,7 @@ Setting Up OpenJ9 (Optional)
 This is optional, you can use Hotspot JDK as well, but OpenJ9 is much
 faster due to its ability to AOT Java code.
 
-On our cluster, OpenJ9 (JDK12) is already installed at
+On our cluster, OpenJ9 (JDK11) is already installed at
 `/pkg/java/j9`. You need to:
 
 	export PATH=/pkg/java/j9/bin:$PATH
@@ -19,14 +19,14 @@ On our cluster, OpenJ9 (JDK12) is already installed at
 Compile and Run
 ===============
 
-Mill supports interactive development. Simply
+Mill starts fast, you don't need to setup a daemon like sbt. Simply
 
-	mill FelisController.startServer
+	mill FelisController.run config.json
 
-to start our server. This will automatically shutdown previous running
-server too. If you need to stop the server:
+to run the controller. To build a jar, I recommend use
 
-	mill FelisController.stopServer
+	mill FelisController.assembly
 
-Our server is running inside the mill daemon. You may kill the mill
-daemon to restart the whole build and run process.
+This will generate a standalone jar
+`out/FelisController/assembly/dest/out.jar`. You can directly run with
+`java -jar`.
