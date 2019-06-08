@@ -1,1 +1,21 @@
-config.json.ycsb
+{
+  "type": "status_change",
+  "status": "configuring",
+  "mem": {
+  },
+  "nodes": [
+    {
+      "name": "host1",
+      "worker": {"host": "127.0.0.1", "port": 1091},
+      "index_shipper": {"host": "127.0.0.1", "port": 43411}
+    }
+  ],
+  "tpcc": {
+    "hot_warehouses": [],
+    "offload_nodes": []
+  },
+  "controller": {
+    "http_port": 8666,
+    "rpc_port": 3148
+  }
+}
