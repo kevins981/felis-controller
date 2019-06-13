@@ -8,7 +8,7 @@ object Experiment {
   var ControllerHost = "127.0.0.1:3148"
   var ControllerHttp = "127.0.0.1:8666"
   var Binary = os.Path.expandUser("~/workspace/felis/buck-out/gen/db#release").toString()
-  var WorkingDir = os.Path.expandUser("~/workspace/felis/")
+  var WorkingDir = os.Path.expandUser("~/workspace/felis/results")
 }
 
 trait Experiment {
@@ -34,22 +34,51 @@ trait Experiment {
     }
   }
 
+  private def die() = {
+    kill()
+    throw new ExperimentRunException()
+  }
+
   def run(): Unit = {
     boot()
-    Thread.sleep(60 * 1000)
-    val r = requests.post("http://%s/broadcast/".format(Experiment.ControllerHttp),
-      data = "{\"type\": \"status_change\", \"status\": \"connecting\"}")
-    if (r.statusCode != 200) {
-      kill()
-      throw new ExperimentRunException()
+    var ready = false
+
+    while (!ready) {
+      Thread.sleep(3000)
+
+      println("Polling the process")
+      val r = requests.post(
+        "http://%s/broadcast/".format(Experiment.ControllerHttp),
+        data = "{\"type\": \"get_status\"}")
+      if (r.statusCode != 200) die()
+      val status = ujson.read(r.text).arr
+      ready = true
+      for (machineStatus <- status) {
+        if (machineStatus.obj("status").str != "listening")
+          ready = false
+      }
     }
+
+    println("Starting now")
+    val r = requests.post(
+      "http://%s/broadcast/".format(Experiment.ControllerHttp),
+      data = "{\"type\": \"status_change\", \"status\": \"connecting\"}")
+    if (r.statusCode != 200) die()
+
     waitToFinish()
+    println(if (isResultValid()) "Success!" else "Failed")
+    Thread.sleep(100)
   }
   def isResultValid() = valid
 
   def loadAllResults(): Unit
   def addAttribute(attr: String) = attributes.append(attr)
-  def cmdArguments() = Array("-Xcpu%02d".format(cpu), "-Xmem%02dG".format(memory))
+  def outputDir() = (Experiment.WorkingDir.toString +: attributes).mkString("/")
+  def cmdArguments() = Array(
+    "-Xcpu%02d".format(cpu),
+    "-Xmem%02dG".format(memory),
+    "-XOutputDir%s".format(outputDir())
+  )
 }
 
 // Configurations in the experiments
