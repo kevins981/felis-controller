@@ -18,6 +18,7 @@ trait Experiment {
 
   def cpu = 16
   def memory = 16
+  def plotSymbol = ""
 
   protected def boot(): Unit
   protected def kill(): Unit = {
@@ -29,9 +30,18 @@ trait Experiment {
   protected def waitToFinish() = {
     for (p <- processes) {
       p.waitFor()
-      if (p.exitCode() != 0)
+      if (p.exitCode() != 0) {
         valid = false
+      }
+      p.close()
     }
+  }
+  protected def hasExited(): Boolean = {
+    for (p <- processes) {
+      if (!p.isAlive())
+        return true
+    }
+    return false
   }
 
   private def die() = {
@@ -45,8 +55,9 @@ trait Experiment {
 
     while (!ready) {
       Thread.sleep(3000)
+      if (hasExited()) die()
 
-      println("Polling the process")
+      // println("Polling the process")
       val r = requests.post(
         "http://%s/broadcast/".format(Experiment.ControllerHttp),
         data = "{\"type\": \"get_status\"}")
@@ -66,12 +77,24 @@ trait Experiment {
     if (r.statusCode != 200) die()
 
     waitToFinish()
-    println(if (isResultValid()) "Success!" else "Failed")
-    Thread.sleep(100)
+    if (!isResultValid())
+      die()
   }
   def isResultValid() = valid
 
-  def loadAllResults(): Unit
+  def loadResults(): ujson.Arr = {
+    val result = ujson.Arr()
+    for (filepath <- os.list(os.Path(outputDir()))) {
+      if (filepath.endsWith(".json")) {
+        val obj = ujson.read(os.read(filepath)).obj
+        obj.put("attribute", attributes.mkString("+"))
+        obj.put("symbol", plotSymbol)
+        result.value.append(obj)
+      }
+    }
+    return result
+  }
+
   def addAttribute(attr: String) = attributes.append(attr)
   def outputDir() = (Experiment.WorkingDir.toString +: attributes).mkString("/")
   def cmdArguments() = Array(
@@ -87,7 +110,7 @@ trait Contented extends Experiment {
   addAttribute(if (contented) "contention" else "nocontention")
 
   override def cmdArguments(): Array[String] = {
-    val extra = if (!contented) Array("-XYcsbReadOnly8", "-XYcsbTableSize100000") else Array[String]()
+    val extra = if (!contented) Array("-XYcsbReadOnly8", "-XYcsbTableSize1000000") else Array[String]()
     super.cmdArguments() ++ extra
   }
 }
