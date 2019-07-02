@@ -33,10 +33,11 @@ class HttpVerticle extends ScalaVerticle {
       .handler(_.response().end(FelisVerticle.configFileBuffer))
 
     router
-      .get("/static")
+      .get("/static/*")
       .handler(
         StaticHandler.create("static")
-          .setCachingEnabled(false))
+          .setCachingEnabled(false)
+          .setDirectoryListing(true))
 
     router
       .post("/broadcast/")

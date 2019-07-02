@@ -145,7 +145,8 @@ object ExperimentsMain extends App {
     run(all)
   }
 
-  def plotTo(a: ujson.Arr, filename: String) = {
+  def plotTo(filename: String)(generateFn: (ujson.Arr) => ujson.Arr) = {
+    val a = generateFn(ujson.Arr())
     println(s"Writing to ${filename}")
 
     val file = Try(
@@ -165,14 +166,19 @@ object ExperimentsMain extends App {
   }
 
   def plotYcsb() = {
-    val a = ujson.Arr()
-    for (contented <- Seq(true, false)) {
-      for (skewFactor <- Seq(0, 90)) {
-        a.value ++= new YcsbLockingExperiment(0, 0, skewFactor, contented).loadResults().value
-        a.value ++= new YcsbPartitionExperiment(0, 0, skewFactor, contented).loadResults().value
+    plotTo("static/ycsb.json") { a =>
+      for (contented <- Seq(true, false)) {
+        for (skewFactor <- Seq(0, 90)) {
+          a.value ++= new YcsbLockingExperiment(0, 0, skewFactor, contented).loadResults().value
+          a.value ++= new YcsbPartitionExperiment(0, 0, skewFactor, contented).loadResults().value
+        }
       }
+      a
     }
-    plotTo(a, "wwwroot/ycsb.json")
+  }
+
+  def plotMultiTpcc() = {
+    // TODO:
   }
 
   if (args.length == 0) {

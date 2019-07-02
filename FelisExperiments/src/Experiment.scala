@@ -86,9 +86,10 @@ trait Experiment {
   def loadResults(): ujson.Arr = {
     val result = ujson.Arr()
     for (filepath <- os.list(os.Path(outputDir()))) {
-      if (filepath.endsWith(".json")) {
+      if (filepath.last.endsWith(".json")) {
+        println(s"loading ${filepath}")
         val obj = ujson.read(os.read(filepath)).obj
-        obj.put("attribute", attributes.mkString("+"))
+        obj.put("attribute", attributes.mkString("_"))
         obj.put("symbol", plotSymbol)
         result.value.append(obj)
       }
