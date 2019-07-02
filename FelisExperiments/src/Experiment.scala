@@ -7,8 +7,8 @@ class ExperimentRunException extends Exception {}
 object Experiment {
   var ControllerHost = "127.0.0.1:3148"
   var ControllerHttp = "127.0.0.1:8666"
-  var Binary = os.Path.expandUser("~/workspace/felis/buck-out/gen/db#release").toString()
-  var WorkingDir = os.Path.expandUser("~/workspace/felis/results")
+  var Binary = "~/workspace/felis/buck-out/gen/db#release"
+  var WorkingDir = "~/workspace/felis/results"
 }
 
 trait Experiment {
@@ -70,6 +70,7 @@ trait Experiment {
       }
     }
 
+    Thread.sleep(5000)
     println("Starting now")
     val r = requests.post(
       "http://%s/broadcast/".format(Experiment.ControllerHttp),
@@ -96,7 +97,7 @@ trait Experiment {
   }
 
   def addAttribute(attr: String) = attributes.append(attr)
-  def outputDir() = (Experiment.WorkingDir.toString +: attributes).mkString("/")
+  def outputDir() = (os.Path.expandUser(Experiment.WorkingDir).toString +: attributes).mkString("/")
   def cmdArguments() = Array(
     "-Xcpu%02d".format(cpu),
     "-Xmem%02dG".format(memory),

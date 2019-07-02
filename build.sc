@@ -14,6 +14,7 @@ object FelisController extends ScalaModule {
 
 object FelisExperiments extends ScalaModule {
   def scalaVersion = "2.12.7"
+  override def forkArgs = Seq("")
 
   override def ivyDeps = Agg(
     ivy"com.lihaoyi::os-lib:0.3.0",
