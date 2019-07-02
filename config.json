@@ -6,8 +6,27 @@
   "nodes": [
     {
       "name": "host1",
-      "worker": {"host": "127.0.0.1", "port": 1091},
-      "index_shipper": {"host": "127.0.0.1", "port": 43411}
+      "ssh_hostname": "c179",
+      "worker": {"host": "142.150.234.179", "port": 1091},
+      "index_shipper": {"host": "142.150.234.179", "port": 43411}
+    },
+    {
+      "name": "host2",
+      "ssh_hostname": "c154",
+      "worker": {"host": "142.150.234.154", "port": 1091},
+      "index_shipper": {"host": "142.150.234.154", "port": 43411}
+    },
+    {
+      "name": "host3",
+      "ssh_hostname": "c165",
+      "worker": {"host": "142.150.234.165", "port": 1091},
+      "index_shipper": {"host": "142.150.234.165", "port": 43411}
+    },
+    {
+      "name": "host4",
+      "ssh_hostname": "c172",
+      "worker": {"host": "142.150.234.172", "port": 1091},
+      "index_shipper": {"host": "142.150.234.172", "port": 43411}
     }
   ],
   "tpcc": {
