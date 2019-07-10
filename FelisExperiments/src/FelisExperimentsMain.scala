@@ -63,7 +63,8 @@ class TpccExperiment(val nodes: Int) extends Experiment {
 }
 
 object MultiNodeTpccExperiment {
-  val hostnameMapping = HashMap[String, String]()
+  val HostnameMapping = HashMap[String, String]()
+  val Formatter = new java.text.SimpleDateFormat("yyyy-MM-dd-HH:mm:ss")
 
   def getHostnameMapping(): Unit = {
     val r = requests.get(s"http://${Experiment.ControllerHttp}/config/")
@@ -73,9 +74,9 @@ object MultiNodeTpccExperiment {
     for (nodeJson <- nodesJson) {
       val name = nodeJson("name").str
       val hostname = nodeJson("ssh_hostname").str
-      hostnameMapping += ((name, hostname))
+      HostnameMapping += ((name, hostname))
     }
-    println(hostnameMapping)
+    println(HostnameMapping)
   }
   getHostnameMapping()
 }
@@ -93,12 +94,37 @@ class MultiNodeTpccExperiment(override val nodes: Int) extends TpccExperiment(no
     } else {
       println(s"Using ssh agent at ${sshAgent}")
     }
-    val sshHost = MultiNodeTpccExperiment.hostnameMapping(nodeName)
+    val sshHost = MultiNodeTpccExperiment.HostnameMapping(nodeName)
     val procArgs = Seq("ssh", sshHost) ++ args
     println(s"Spawning ${procArgs.mkString(" ")}")
     processes += os.proc(procArgs).spawn(
       stdout = os.pwd / s"${nodeName}.out", stderr = os.pwd / s"${nodeName}.err")
     Thread.sleep(1000)
+  }
+  override def loadResults(): ujson.Arr = {
+    val rs = super.loadResults()
+    val perNode = ArrayBuffer[ArrayBuffer[(Long, ujson.Obj)]]()
+    0 until nodes foreach { _ =>
+      perNode += ArrayBuffer[(Long, ujson.Obj)]()
+    }
+    val agg = ujson.Arr()
+    for (o <- rs.value) {
+      val fn = o("filename").str
+      if (!fn.endsWith(".json")) throw new ExperimentRunException()
+      val afn = fn.dropRight(5).split("-")
+      val nodeNr = afn(0).drop(4).toInt
+      val date = MultiNodeTpccExperiment.Formatter.parse(afn(1))
+      perNode(nodeNr - 1) += ((date.getTime, o.obj))
+    }
+    var len = 0
+    perNode foreach { a =>
+      a.sortBy(_._1)
+      if (len > 0 && a.length != len) throw new ExperimentRunException()
+      len = a.length
+    }
+    0 until len foreach { _ =>
+    }
+    agg
   }
 }
 

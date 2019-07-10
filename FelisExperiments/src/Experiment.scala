@@ -91,6 +91,7 @@ trait Experiment {
         val obj = ujson.read(os.read(filepath)).obj
         obj.put("attribute", attributes.mkString("_"))
         obj.put("symbol", plotSymbol)
+        obj.put("filename", filepath.last)
         result.value.append(obj)
       }
     }
