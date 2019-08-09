@@ -23,7 +23,7 @@ class YcsbExperiment extends Experiment {
 class YcsbPartitionExperiment(override val cpu: Int,
                               override val memory: Int,
                               override val skewFactor: Int,
-                              override val contented: Boolean) extends YcsbExperiment with Contented with Skewed {
+                              override val contended: Boolean) extends YcsbExperiment with Contended with Skewed {
   addAttribute("partition")
 
   override def plotSymbol = "Partition"
@@ -32,13 +32,50 @@ class YcsbPartitionExperiment(override val cpu: Int,
     super.cmdArguments() ++ Array("-XYcsbEnablePartition", "-XEpochQueueLength100M", "-XVHandleLockElision")
 }
 
+
+class YcsbGranolaExperiment(override val cpu: Int,
+                            override val memory: Int,
+                            override val skewFactor: Int,
+                            override val contended: Boolean) extends YcsbExperiment with Contended with Skewed {
+  addAttribute("granola")
+
+  override def plotSymbol = "Granola"
+
+  override def cmdArguments() =
+    super.cmdArguments() ++ Array("-XYcsbEnablePartition", "-XEpochQueueLength100M", "-XEnableGranola")
+}
+
 class YcsbLockingExperiment(override val cpu: Int,
                             override val memory: Int,
                             override val skewFactor: Int,
-                            override val contented: Boolean) extends YcsbExperiment with Contented with Skewed {
+                            override val contended: Boolean) extends YcsbExperiment with Contended with Skewed {
   addAttribute("locking")
 
   override def plotSymbol = "Locking"
+}
+
+class YcsbBatchAppendExperiment(override val cpu: Int,
+                                override val memory: Int,
+                                override val skewFactor: Int,
+                                override val contended: Boolean) extends YcsbExperiment with Contended with Skewed {
+  addAttribute("batchappend")
+
+  override def plotSymbol = "Batch Append"
+
+  override def cmdArguments() =
+    super.cmdArguments() ++ Array("-XVHandleBatchAppend")
+}
+
+class YcsbAllOptExperiment(override val cpu: Int,
+                           override val memory: Int,
+                           override val skewFactor: Int,
+                           override val contended: Boolean) extends YcsbExperiment with Contended with Skewed {
+  addAttribute("allopt")
+
+  override def plotSymbol = "All Optimization"
+
+  override def cmdArguments() =
+    super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XCongestionControl")
 }
 
 class TpccExperiment(val nodes: Int) extends Experiment {
@@ -147,13 +184,16 @@ object ExperimentsMain extends App {
 
   def runYcsb() = {
     val all = ArrayBuffer[Experiment]()
-    0 until 5 foreach { _ =>
+    0 until 3 foreach { _ =>
       for (cpu <- Seq(8, 16, 24, 32)) {
-        for (contented <- Seq(true, false)) {
+        for (contended <- Seq(true, false)) {
           for (skewFactor <- Seq(0, 90)) {
             val mem = cpu
-            all.append(new YcsbPartitionExperiment(cpu, mem, skewFactor, contented))
-            all.append(new YcsbLockingExperiment(cpu, mem, skewFactor, contented))
+            // all.append(new YcsbPartitionExperiment(cpu, mem, skewFactor, contended))
+            all.append(new YcsbLockingExperiment(cpu, mem, skewFactor, contended))
+            all.append(new YcsbBatchAppendExperiment(cpu, mem, skewFactor, contended))
+            all.append(new YcsbAllOptExperiment(cpu, mem, skewFactor, contended))
+            all.append(new YcsbGranolaExperiment(cpu, mem, skewFactor, contended))
           }
         }
       }
@@ -193,10 +233,13 @@ object ExperimentsMain extends App {
 
   def plotYcsb() = {
     plotTo("static/ycsb.json") { a =>
-      for (contented <- Seq(true, false)) {
+      for (contended <- Seq(true, false)) {
         for (skewFactor <- Seq(0, 90)) {
-          a.value ++= new YcsbLockingExperiment(0, 0, skewFactor, contented).loadResults().value
-          a.value ++= new YcsbPartitionExperiment(0, 0, skewFactor, contented).loadResults().value
+          a.value ++= new YcsbLockingExperiment(0, 0, skewFactor, contended).loadResults().value
+          // a.value ++= new YcsbPartitionExperiment(0, 0, skewFactor, contended).loadResults().value
+          a.value ++= new YcsbBatchAppendExperiment(0, 0, skewFactor, contended).loadResults().value
+          a.value ++= new YcsbAllOptExperiment(0, 0, skewFactor, contended).loadResults().value
+          a.value ++= new YcsbGranolaExperiment(0, 0, skewFactor, contended).loadResults().value
         }
       }
       a

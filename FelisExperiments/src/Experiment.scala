@@ -108,12 +108,12 @@ trait Experiment {
 }
 
 // Configurations in the experiments
-trait Contented extends Experiment {
-  def contented = false
-  addAttribute(if (contented) "contention" else "nocontention")
+trait Contended extends Experiment {
+  def contended = false
+  addAttribute(if (contended) "contention" else "nocontention")
 
   override def cmdArguments(): Array[String] = {
-    val extra = if (!contented) Array("-XYcsbReadOnly8", "-XYcsbTableSize1000000") else Array[String]()
+    val extra = if (!contended) Array("-XYcsbReadOnly8", "-XYcsbTableSize1000000") else Array[String]()
     super.cmdArguments() ++ extra
   }
 }
