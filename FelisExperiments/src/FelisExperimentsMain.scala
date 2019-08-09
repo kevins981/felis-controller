@@ -5,6 +5,27 @@ import java.io.{FileOutputStream, FileWriter}
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 import scala.util.{Failure, Success, Try}
 
+// Configurations in the experiments
+trait YcsbContended extends Experiment {
+  def contended = false
+  addAttribute(if (contended) "contention" else "nocontention")
+
+  override def cmdArguments(): Array[String] = {
+    val extra = if (!contended) Array("-XYcsbReadOnly8", "-XYcsbTableSize1000000") else Array[String]()
+    super.cmdArguments() ++ extra
+  }
+}
+
+trait YcsbSkewed extends Experiment {
+  def skewFactor = 0
+  addAttribute(if (skewFactor == 0) "noskew" else "skew%02d".format(skewFactor))
+
+  override def cmdArguments(): Array[String] = {
+    val extra = if (skewFactor > 0) Array("-XYcsbSkewFactor%02d".format(skewFactor)) else Array[String]()
+    super.cmdArguments() ++ extra
+  }
+}
+
 class YcsbExperiment extends Experiment {
   override def boot(): Unit = {
     val args = Array(os.Path.expandUser(Experiment.Binary).toString,
@@ -16,14 +37,14 @@ class YcsbExperiment extends Experiment {
     os.makeDir.all(os.Path.expandUser(outputDir()))
 
     println(s"Booting with running ${args.mkString(" ")}")
-    processes += os.proc(args).spawn(cwd = os.Path.expandUser(Experiment.WorkingDir), stderr = os.Inherit, stdout = os.Inherit)
+    spawnProcess(args)
   }
 }
 
 class YcsbPartitionExperiment(override val cpu: Int,
                               override val memory: Int,
                               override val skewFactor: Int,
-                              override val contended: Boolean) extends YcsbExperiment with Contended with Skewed {
+                              override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
   addAttribute("partition")
 
   override def plotSymbol = "Partition"
@@ -36,7 +57,7 @@ class YcsbPartitionExperiment(override val cpu: Int,
 class YcsbGranolaExperiment(override val cpu: Int,
                             override val memory: Int,
                             override val skewFactor: Int,
-                            override val contended: Boolean) extends YcsbExperiment with Contended with Skewed {
+                            override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
   addAttribute("granola")
 
   override def plotSymbol = "Granola"
@@ -48,7 +69,7 @@ class YcsbGranolaExperiment(override val cpu: Int,
 class YcsbLockingExperiment(override val cpu: Int,
                             override val memory: Int,
                             override val skewFactor: Int,
-                            override val contended: Boolean) extends YcsbExperiment with Contended with Skewed {
+                            override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
   addAttribute("locking")
 
   override def plotSymbol = "Locking"
@@ -57,7 +78,7 @@ class YcsbLockingExperiment(override val cpu: Int,
 class YcsbBatchAppendExperiment(override val cpu: Int,
                                 override val memory: Int,
                                 override val skewFactor: Int,
-                                override val contended: Boolean) extends YcsbExperiment with Contended with Skewed {
+                                override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
   addAttribute("batchappend")
 
   override def plotSymbol = "Batch Append"
@@ -69,7 +90,7 @@ class YcsbBatchAppendExperiment(override val cpu: Int,
 class YcsbAllOptExperiment(override val cpu: Int,
                            override val memory: Int,
                            override val skewFactor: Int,
-                           override val contended: Boolean) extends YcsbExperiment with Contended with Skewed {
+                           override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
   addAttribute("allopt")
 
   override def plotSymbol = "All Optimization"
@@ -78,7 +99,7 @@ class YcsbAllOptExperiment(override val cpu: Int,
     super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XCongestionControl")
 }
 
-class TpccExperiment(val nodes: Int) extends Experiment {
+class BaseTpccExperiment(val nodes: Int) extends Experiment {
   override def boot() = {
     println(s"Making outdir ${outputDir()}")
     os.makeDir.all(os.Path.expandUser(outputDir()))
@@ -97,6 +118,46 @@ class TpccExperiment(val nodes: Int) extends Experiment {
   def launchProcess(nodeName: String, args: Seq[String]) = {
     println(s"Launching process with ${args.mkString(" ")}")
   }
+}
+
+class HotspotTpccExperiment extends BaseTpccExperiment(1) {
+  def hotspotLoad = 0
+
+  addAttribute("hotspot%03d".format(hotspotLoad))
+
+  override def launchProcess(nodeName: String, args: Seq[String]): Unit = {
+    super.launchProcess(nodeName, args)
+    spawnProcess(Seq(os.Path.expandUser(Experiment.Binary).toString) ++ args.drop(1)) // Ignoring the nodeName because this is a single node experiment
+  }
+  override def cmdArguments() = {
+    if (hotspotLoad > 0) {
+      super.cmdArguments() ++ Array("-XTpccHotWarehouseBitmap1", "-XTpccHotWarehouseLoad%03d".format(hotspotLoad))
+    } else {
+      super.cmdArguments()
+    }
+  }
+}
+
+class HotspotTpccAllOptsExperiment(override val cpu: Int,
+                                   override val memory: Int,
+                                   override val hotspotLoad: Int) extends HotspotTpccExperiment {
+  addAttribute("allopt")
+
+  override def plotSymbol = "All Optimization"
+
+  override def cmdArguments() =
+    super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XCongestionControl")
+}
+
+class HotspotTpccGranolaExperiment(override val cpu: Int,
+                                   override val memory: Int,
+                                   override val hotspotLoad: Int) extends HotspotTpccExperiment {
+  addAttribute("granola")
+
+  override def plotSymbol = "Granola"
+
+  override def cmdArguments() =
+    super.cmdArguments() ++ Array("-XEpochQueueLength100M", "-XEnableGranola")
 }
 
 object MultiNodeTpccExperiment {
@@ -118,7 +179,7 @@ object MultiNodeTpccExperiment {
   getHostnameMapping()
 }
 
-class MultiNodeTpccExperiment(override val nodes: Int) extends TpccExperiment(nodes) {
+class MultiNodeTpccExperiment(override val nodes: Int) extends BaseTpccExperiment(nodes) {
   addAttribute(s"multi${nodes}")
   override def cpu = 16
   override def memory = 18
@@ -201,6 +262,20 @@ object ExperimentsMain extends App {
     run(all)
   }
 
+  def runHotspotTpcc() = {
+    val all = ArrayBuffer[Experiment]()
+    0 until 3 foreach { _ =>
+      for (cpu <- Seq(8, 16, 24, 32)) {
+        for (load <- Seq(0, 500)) {
+          val mem = cpu * 2
+          all.append(new HotspotTpccAllOptsExperiment(cpu, mem, load))
+          all.append(new HotspotTpccGranolaExperiment(cpu, mem, load))
+        }
+      }
+    }
+    run(all)
+  }
+
   def runMultiTpcc() = {
     val all = ArrayBuffer[Experiment]()
     0 until 10 foreach { _ =>
@@ -259,6 +334,8 @@ object ExperimentsMain extends App {
     runYcsb()
   } else if (args(0) == "plotYcsb") {
     plotYcsb()
+  } else if (args(0) == "runHotspotTpcc") {
+    runHotspotTpcc()
   } else if (args(0) == "runMultiTpcc") {
     Experiment.ControllerHttp = "142.150.234.2:8666"
     Experiment.ControllerHost = "142.150.234.2:3148"

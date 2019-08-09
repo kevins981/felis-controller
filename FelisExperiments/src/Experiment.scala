@@ -20,12 +20,19 @@ trait Experiment {
   def memory = 16
   def plotSymbol = ""
 
+  // Helper function for adding a new process
+  def spawnProcess(args: Seq[String]) = {
+    processes += os.proc(args).spawn(cwd = os.Path.expandUser(Experiment.WorkingDir), stderr = os.Inherit, stdout = os.Inherit)
+  }
+
   protected def boot(): Unit
   protected def kill(): Unit = {
     for (p <- processes) {
       p.destroy()
       p.destroyForcibly()
+      p.close()
     }
+    processes.clear()
   }
   protected def waitToFinish() = {
     for (p <- processes) {
@@ -35,6 +42,7 @@ trait Experiment {
       }
       p.close()
     }
+    processes.clear()
   }
   protected def hasExited(): Boolean = {
     for (p <- processes) {
@@ -105,25 +113,4 @@ trait Experiment {
     "-Xmem%02dG".format(memory),
     "-XOutputDir%s".format(outputDir())
   )
-}
-
-// Configurations in the experiments
-trait Contended extends Experiment {
-  def contended = false
-  addAttribute(if (contended) "contention" else "nocontention")
-
-  override def cmdArguments(): Array[String] = {
-    val extra = if (!contended) Array("-XYcsbReadOnly8", "-XYcsbTableSize1000000") else Array[String]()
-    super.cmdArguments() ++ extra
-  }
-}
-
-trait Skewed extends Experiment {
-  def skewFactor = 0
-  addAttribute(if (skewFactor == 0) "noskew" else "skew%02d".format(skewFactor))
-
-  override def cmdArguments(): Array[String] = {
-    val extra = if (skewFactor > 0) Array("-XYcsbSkewFactor%02d".format(skewFactor)) else Array[String]()
-    super.cmdArguments() ++ extra
-  }
 }
