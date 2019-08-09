@@ -66,15 +66,20 @@ trait Experiment {
       if (hasExited()) die()
 
       // println("Polling the process")
-      val r = requests.post(
-        "http://%s/broadcast/".format(Experiment.ControllerHttp),
-        data = "{\"type\": \"get_status\"}")
-      if (r.statusCode != 200) die()
-      val status = ujson.read(r.text).arr
-      ready = true
-      for (machineStatus <- status) {
-        if (machineStatus.obj("status").str != "listening")
-          ready = false
+      try {
+        val r = requests.post(
+          "http://%s/broadcast/".format(Experiment.ControllerHttp),
+          data = "{\"type\": \"get_status\"}")
+        if (r.statusCode != 200) die()
+        val status = ujson.read(r.text).arr
+        ready = true
+        for (machineStatus <- status) {
+          if (machineStatus.obj("status").str != "listening")
+            ready = false
+        }
+      } catch {
+        case e: ExperimentRunException => throw e
+        case _: Throwable => println("Failed, retry")
       }
     }
 

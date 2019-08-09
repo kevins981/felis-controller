@@ -157,7 +157,7 @@ class HotspotTpccGranolaExperiment(override val cpu: Int,
   override def plotSymbol = "Granola"
 
   override def cmdArguments() =
-    super.cmdArguments() ++ Array("-XEpochQueueLength100M", "-XEnableGranola")
+    super.cmdArguments() ++ Array("-XEpochQueueLength20M", "-XEnableGranola")
 }
 
 object MultiNodeTpccExperiment {
@@ -321,6 +321,16 @@ object ExperimentsMain extends App {
     }
   }
 
+  def plotHotspotTpcc() = {
+    plotTo("static/hotspot-tpcc.json") { a =>
+      for (load <- Seq(0, 500)) {
+        a.value ++= new HotspotTpccAllOptsExperiment(0, 0, load).loadResults().value
+        a.value ++= new HotspotTpccGranolaExperiment(0, 0, load).loadResults().value
+      }
+      a
+    }
+  }
+
   def plotMultiTpcc() = {
     // TODO:
   }
@@ -336,6 +346,8 @@ object ExperimentsMain extends App {
     plotYcsb()
   } else if (args(0) == "runHotspotTpcc") {
     runHotspotTpcc()
+  } else if (args(0) == "plotHotspotTpcc") {
+    plotHotspotTpcc()
   } else if (args(0) == "runMultiTpcc") {
     Experiment.ControllerHttp = "142.150.234.2:8666"
     Experiment.ControllerHost = "142.150.234.2:3148"
