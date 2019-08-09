@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Locking vs Partition</title>
+    <script src="https://cdn.jsdelivr.net/npm/vega@5.4.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@3.3.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@4.2.0"></script>
+    <style media="print">
+    .vega-embed { display: inline-block; }
+    </style>
+  </head>
+  <body>
+    <div>
+      <div id="intro-v0"></div>
+      <div id="intro-v1"></div>
+      <div id="intro-v2"></div>
+      <div id="intro-v3"></div>
+    </div>
+    <div>
+      <div id="eval-v0"></div>
+      <div id="eval-v1"></div>
+      <div id="eval-v2"></div>
+      <div id="eval-v3"></div>
+    </div>
+    <div>
+      <div id="eval-hotspot-tpcc1"></div>
+      <div id="eval-hotspot-tpcc2"></div>
+    </div>
+    <script type="text/javascript">
+      let q = new URLSearchParams(location.search)
+      let base = {
+          'data': {'url': ''},
+	  'width': 175,
+	  'height': 120,
+	  'layer': [
+	      {
+		  'mark': {
+		      'type': 'errorbar',
+		      'extent': 'ci',
+		      'ticks': true,
+		  },
+		  'encoding': {
+		      'x': {'field': 'cpu', 'type': 'quantitative'},
+		      'y': {'field': 'throughput', 'type': 'quantitative'},
+		      'color': {'field': "symbol", 'type': "nominal", 'title': ''},
+		  }
+	      },
+	      {
+		  'mark': {
+		      'type': 'line',
+		      'point': true
+		  },
+		  'encoding': {
+		      'x': {'field': 'cpu', 'type': 'quantitative'},
+		      'y': {'field': 'throughput', 'type': 'quantitative', 'aggregate': 'mean'},
+		      'color': {'field': "symbol", 'type': "nominal", 'title': ''},
+		  }
+	      },
+	  ],
+	  'config': {
+	      'range': {'category': []}
+	  },
+	  'transform': [
+	      {},
+	  ],
+      };
+
+      const plot = (title, filter, selector) => {
+	  let d = base
+	  d['transform'][0] = {'filter': filter}
+	  if (q.has('showTitle'))
+	      d['title'] = title
+	  vegaEmbed(selector, d, {'mode': 'vega-lite', 'renderer': 'svg'})
+      }
+
+      base['data']['url'] = 'ycsb.json'
+
+      base['config']['range']['category'] = ['#640912', '#1f77b4']
+      
+      plot('NoContention NoSkew',
+	   'datum.attribute == "nocontention_noskew_locking" || datum.attribute == "nocontention_noskew_granola"',
+	   '#intro-v0')
+
+      plot('Contention NoSkew',
+	   'datum.attribute == "contention_noskew_locking" || datum.attribute == "contention_noskew_granola"',
+	   '#intro-v1')
+
+      plot('NoContention Skew',
+	   'datum.attribute == "nocontention_skew90_locking" || datum.attribute == "nocontention_skew90_granola"',
+	   '#intro-v2')
+
+      plot('Contention Skew',
+	   'datum.attribute == "contention_skew90_locking" || datum.attribute == "contention_skew90_granola"',
+	   '#intro-v3')
+
+      base['config']['range']['category'] = ['#d62728', '#de9e14', '#640912', '#1f77b4']
+      plot('NoContention NoSkew',
+	   'datum.attribute == "nocontention_noskew_locking" || datum.attribute == "nocontention_noskew_batchappend" || datum.attribute == "nocontention_noskew_allopt" || datum.attribute == "nocontention_noskew_granola"',
+	   '#eval-v0')
+
+      plot('Contention NoSkew',
+	   'datum.attribute == "contention_noskew_locking" || datum.attribute == "contention_noskew_batchappend" || datum.attribute == "contention_noskew_allopt" || datum.attribute == "contention_noskew_granola"',
+	   '#eval-v1')
+
+      plot('NoContention Skew',
+	   'datum.attribute == "nocontention_skew90_locking" || datum.attribute == "nocontention_skew90_batchappend" || datum.attribute == "nocontention_skew90_allopt" || datum.attribute == "nocontention_skew90_granola"',
+	   '#eval-v2')
+
+      plot('Contention Skew',
+	   'datum.attribute == "contention_skew90_locking" || datum.attribute == "contention_skew90_batchappend" || datum.attribute == "contention_skew90_allopt" || datum.attribute == "contention_skew90_granola"',
+	   '#eval-v3')
+
+      base['data']['url'] = 'hotspot-tpcc.json'
+
+      plot('NoSkew TPC-C',
+	   'datum.attribute == "hotspot000_allopt" || datum.attribute == "hotspot000_granola"',
+	   '#eval-hotspot-tpcc1')
+      plot('Skew TPC-C',
+	   'datum.attribute == "hotspot500_allopt" || datum.attribute == "hotspot500_granola"',
+	   '#eval-hotspot-tpcc2')
+      
+    </script>
+  </body>
+</html>
