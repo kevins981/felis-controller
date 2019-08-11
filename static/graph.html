@@ -52,7 +52,7 @@
 		  },
 		  'encoding': {
 		      'x': {'field': 'cpu', 'type': 'quantitative'},
-		      'y': {'field': 'throughput', 'type': 'quantitative', 'aggregate': 'mean'},
+		      'y': {'field': 'throughput', 'type': 'quantitative', 'aggregate': 'mean', 'axis': {'tickCount': 5}, 'scale': {'domain': []}},
 		      'color': {'field': "symbol", 'type': "nominal", 'title': ''},
 		  }
 	      },
@@ -65,11 +65,13 @@
 	  ],
       };
 
-      const plot = (title, filter, selector) => {
+      const plot = (title, filter, ydomain, selector) => {
 	  let d = base
 	  d['transform'][0] = {'filter': filter}
 	  if (q.has('showTitle'))
 	      d['title'] = title
+	  d['layer'][1]['encoding']['y']['scale']['domain'] = ydomain
+	  d['layer'][1]['encoding']['y']['axis']['values'] = [1, 2, 3, 4, 5].map(x => x * ydomain[1] / 5)
 	  vegaEmbed(selector, d, {'mode': 'vega-lite', 'renderer': 'svg'})
       }
 
@@ -79,44 +81,55 @@
       
       plot('NoContention NoSkew',
 	   'datum.attribute == "nocontention_noskew_locking" || datum.attribute == "nocontention_noskew_granola"',
+	   [0, 1500000],
 	   '#intro-v0')
 
       plot('Contention NoSkew',
 	   'datum.attribute == "contention_noskew_locking" || datum.attribute == "contention_noskew_granola"',
+	   [0, 1000000],
 	   '#intro-v1')
 
       plot('NoContention Skew',
 	   'datum.attribute == "nocontention_skew90_locking" || datum.attribute == "nocontention_skew90_granola"',
+	   [0, 1500000],
 	   '#intro-v2')
 
       plot('Contention Skew',
 	   'datum.attribute == "contention_skew90_locking" || datum.attribute == "contention_skew90_granola"',
+	   [0, 500000],
 	   '#intro-v3')
 
-      base['config']['range']['category'] = ['#d62728', '#de9e14', '#640912', '#1f77b4']
+      base['config']['range']['category'] = ['#de9e14', '#d62728', '#9c1a79', '#f593da', '#1f77b4']
       plot('NoContention NoSkew',
-	   'datum.attribute == "nocontention_noskew_locking" || datum.attribute == "nocontention_noskew_batchappend" || datum.attribute == "nocontention_noskew_allopt" || datum.attribute == "nocontention_noskew_granola"',
+	   'datum.attribute == "nocontention_noskew_locking" || datum.attribute == "nocontention_noskew_batchappend" || datum.attribute == "nocontention_noskew_allopt" || datum.attribute == "nocontention_noskew_granola" || datum.attribute == "nocontention_noskew_granola-depend"',
+	   [0, 1500000],
 	   '#eval-v0')
 
       plot('Contention NoSkew',
-	   'datum.attribute == "contention_noskew_locking" || datum.attribute == "contention_noskew_batchappend" || datum.attribute == "contention_noskew_allopt" || datum.attribute == "contention_noskew_granola"',
+	   'datum.attribute == "contention_noskew_locking" || datum.attribute == "contention_noskew_batchappend" || datum.attribute == "contention_noskew_allopt" || datum.attribute == "contention_noskew_granola" || datum.attribute == "contention_noskew_granola-depend"',
+	   [0, 1000000],
 	   '#eval-v1')
 
       plot('NoContention Skew',
-	   'datum.attribute == "nocontention_skew90_locking" || datum.attribute == "nocontention_skew90_batchappend" || datum.attribute == "nocontention_skew90_allopt" || datum.attribute == "nocontention_skew90_granola"',
+	   'datum.attribute == "nocontention_skew90_locking" || datum.attribute == "nocontention_skew90_batchappend" || datum.attribute == "nocontention_skew90_allopt" || datum.attribute == "nocontention_skew90_granola" || datum.attribute == "nocontention_skew90_granola-depend"',
+	   [0, 1500000],
 	   '#eval-v2')
 
       plot('Contention Skew',
-	   'datum.attribute == "contention_skew90_locking" || datum.attribute == "contention_skew90_batchappend" || datum.attribute == "contention_skew90_allopt" || datum.attribute == "contention_skew90_granola"',
+	   'datum.attribute == "contention_skew90_locking" || datum.attribute == "contention_skew90_batchappend" || datum.attribute == "contention_skew90_allopt" || datum.attribute == "contention_skew90_granola" || datum.attribute == "contention_skew90_granola-depend"',
+	   [0, 500000],
 	   '#eval-v3')
 
       base['data']['url'] = 'hotspot-tpcc.json'
+      base['config']['range']['category'] = ['#d62728', '#9c1a79']
 
       plot('NoSkew TPC-C',
 	   'datum.attribute == "hotspot000_allopt" || datum.attribute == "hotspot000_granola"',
+	   [0, 1000000],
 	   '#eval-hotspot-tpcc1')
       plot('Skew TPC-C',
 	   'datum.attribute == "hotspot500_allopt" || datum.attribute == "hotspot500_granola"',
+	   [0, 1000000],
 	   '#eval-hotspot-tpcc2')
       
     </script>
