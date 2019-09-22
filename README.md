@@ -7,8 +7,9 @@ sbt. Combining with the OpenJ9 VM installed on our cluster.
 Setting Up OpenJ9 (Optional)
 ============================
 
-This is optional, you can use Hotspot JDK as well, but OpenJ9 is much
-faster due to its ability to AOT Java code.
+This is optional, you can use Hotspot JDK as well (but make sure you
+are using JDK11), but OpenJ9 is much faster due to its ability to AOT
+Java code.
 
 On our cluster, OpenJ9 (JDK11) is already installed at
 `/pkg/java/j9`. You need to:
