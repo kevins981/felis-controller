@@ -11,7 +11,7 @@ trait YcsbContended extends Experiment {
   addAttribute(if (contended) "contention" else "nocontention")
 
   override def cmdArguments(): Array[String] = {
-    val extra = if (!contended) Array("-XYcsbReadOnly8", "-XYcsbTableSize1000000") else Array[String]()
+    val extra = if (!contended) Array("-XYcsbReadOnly8") else Array("-XYcsbContentionKey4")
     super.cmdArguments() ++ extra
   }
 }
@@ -98,16 +98,28 @@ class YcsbBatchAppendExperiment(override val cpu: Int,
     super.cmdArguments() ++ Array("-XVHandleBatchAppend")
 }
 
-class YcsbAllOptExperiment(override val cpu: Int,
-                           override val memory: Int,
-                           override val skewFactor: Int,
-                           override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
-  addAttribute("allopt")
+class YcsbCongestionControlExperiment(override val cpu: Int,
+                                      override val memory: Int,
+                                      override val skewFactor: Int,
+                                      override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
+  addAttribute("congestion")
 
-  override def plotSymbol = "Caracal"
+  override def plotSymbol = "Caracal with Congestion Control"
 
   override def cmdArguments() =
     super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XCongestionControl")
+}
+
+class YcsbVHandleParallelExperiment(override val cpu: Int,
+                                    override val memory: Int,
+                                    override val skewFactor: Int,
+                                    override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
+  addAttribute("parallel")
+
+  override def plotSymbol = "Caracal with Parallel Pieces"
+
+  override def cmdArguments() =
+    super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XVHandleParallel")
 }
 
 class BaseTpccExperiment(val nodes: Int) extends Experiment {
@@ -149,10 +161,10 @@ class HotspotTpccExperiment extends BaseTpccExperiment(1) {
   }
 }
 
-class HotspotTpccAllOptsExperiment(override val cpu: Int,
-                                   override val memory: Int,
-                                   override val hotspotLoad: Int) extends HotspotTpccExperiment {
-  addAttribute("allopt")
+class HotspotTpccCongestionControlExperiment(override val cpu: Int,
+                                             override val memory: Int,
+                                             override val hotspotLoad: Int) extends HotspotTpccExperiment {
+  addAttribute("congestion")
 
   override def plotSymbol = "Caracal"
 
@@ -261,12 +273,12 @@ object ExperimentsMain extends App {
         for (contended <- Seq(true, false)) {
           for (skewFactor <- Seq(0, 90)) {
             val mem = cpu
-            // all.append(new YcsbPartitionExperiment(cpu, mem, skewFactor, contended))
-            // all.append(new YcsbLockingExperiment(cpu, mem, skewFactor, contended))
-            // all.append(new YcsbBatchAppendExperiment(cpu, mem, skewFactor, contended))
-            // all.append(new YcsbAllOptExperiment(cpu, mem, skewFactor, contended))
-            // all.append(new YcsbGranolaExperiment(cpu, mem, skewFactor, contended))
+            all.append(new YcsbLockingExperiment(cpu, mem, skewFactor, contended))
+            all.append(new YcsbBatchAppendExperiment(cpu, mem, skewFactor, contended))
+            all.append(new YcsbCongestionControlExperiment(cpu, mem, skewFactor, contended))
+            all.append(new YcsbGranolaExperiment(cpu, mem, skewFactor, contended))
             all.append(new YcsbGranolaDependencyExperiment(cpu, mem, skewFactor, contended))
+            all.append(new YcsbVHandleParallelExperiment(cpu, mem, skewFactor, contended))
           }
         }
       }
@@ -278,9 +290,9 @@ object ExperimentsMain extends App {
     val all = ArrayBuffer[Experiment]()
     0 until 3 foreach { _ =>
       for (cpu <- Seq(8, 16, 24, 32)) {
-        for (load <- Seq(0, 500)) {
+        for (load <- Seq(0, 200, 300, 400, 500)) {
           val mem = cpu * 2
-          all.append(new HotspotTpccAllOptsExperiment(cpu, mem, load))
+          all.append(new HotspotTpccCongestionControlExperiment(cpu, mem, load))
           all.append(new HotspotTpccGranolaExperiment(cpu, mem, load))
         }
       }
@@ -323,9 +335,9 @@ object ExperimentsMain extends App {
       for (contended <- Seq(true, false)) {
         for (skewFactor <- Seq(0, 90)) {
           a.value ++= new YcsbLockingExperiment(0, 0, skewFactor, contended).loadResults().value
-          // a.value ++= new YcsbPartitionExperiment(0, 0, skewFactor, contended).loadResults().value
           a.value ++= new YcsbBatchAppendExperiment(0, 0, skewFactor, contended).loadResults().value
-          a.value ++= new YcsbAllOptExperiment(0, 0, skewFactor, contended).loadResults().value
+          a.value ++= new YcsbCongestionControlExperiment(0, 0, skewFactor, contended).loadResults().value
+          a.value ++= new YcsbVHandleParallelExperiment(0, 0, skewFactor, contended).loadResults().value
           a.value ++= new YcsbGranolaExperiment(0, 0, skewFactor, contended).loadResults().value
           a.value ++= new YcsbGranolaDependencyExperiment(0, 0, skewFactor, contended).loadResults().value
         }
@@ -337,7 +349,7 @@ object ExperimentsMain extends App {
   def plotHotspotTpcc() = {
     plotTo("static/hotspot-tpcc.json") { a =>
       for (load <- Seq(0, 500)) {
-        a.value ++= new HotspotTpccAllOptsExperiment(0, 0, load).loadResults().value
+        a.value ++= new HotspotTpccCongestionControlExperiment(0, 0, load).loadResults().value
         a.value ++= new HotspotTpccGranolaExperiment(0, 0, load).loadResults().value
       }
       a
