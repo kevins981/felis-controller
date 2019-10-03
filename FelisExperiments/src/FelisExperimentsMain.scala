@@ -7,11 +7,11 @@ import scala.util.{Failure, Success, Try}
 
 // Configurations in the experiments
 trait YcsbContended extends Experiment {
-  def contended = false
-  addAttribute(if (contended) "contention" else "nocontention")
+  def contentionLevel = 0
+  addAttribute(s"cont${contentionLevel}")
 
   override def cmdArguments(): Array[String] = {
-    val extra = if (!contended) Array("-XYcsbReadOnly8") else Array("-XYcsbContentionKey4")
+    val extra = if (contentionLevel == 0) Array("-XYcsbReadOnly8") else Array(s"-XYcsbContentionKey${contentionLevel}")
     super.cmdArguments() ++ extra
   }
 }
@@ -26,7 +26,15 @@ trait YcsbSkewed extends Experiment {
   }
 }
 
-class YcsbExperiment extends Experiment {
+class YcsbExperimentConfig(
+  val cpu: Int,
+  val memory: Int,
+  val skewFactor: Int,
+  val contentionLevel: Int,
+  val dependency: Boolean = false)
+{}
+
+abstract class YcsbExperiment extends Experiment with YcsbContended with YcsbSkewed {
   override def boot(): Unit = {
     val args = Array(os.Path.expandUser(Experiment.Binary).toString,
       "-c", Experiment.ControllerHost,
@@ -39,24 +47,19 @@ class YcsbExperiment extends Experiment {
     println(s"Booting with running ${args.mkString(" ")}")
     spawnProcess(args)
   }
-}
 
-class YcsbPartitionExperiment(override val cpu: Int,
-                              override val memory: Int,
-                              override val skewFactor: Int,
-                              override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
-  addAttribute("partition")
+  implicit val config: YcsbExperimentConfig
 
-  override def plotSymbol = "Partition"
+  override def cpu = config.cpu
+  override def memory = config.memory
+  override def skewFactor = config.skewFactor
+  override def contentionLevel = config.contentionLevel
 
   override def cmdArguments() =
-    super.cmdArguments() ++ Array("-XYcsbEnablePartition", "-XEpochQueueLength100M", "-XVHandleLockElision")
+    if (config.dependency) super.cmdArguments() ++ Array("-XYcsbDependency") else super.cmdArguments()
 }
 
-class YcsbGranolaExperiment(override val cpu: Int,
-                            override val memory: Int,
-                            override val skewFactor: Int,
-                            override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
+class YcsbGranolaExperiment(implicit val config: YcsbExperimentConfig) extends YcsbExperiment {
   addAttribute("granola")
 
   override def plotSymbol = "Granola"
@@ -65,62 +68,31 @@ class YcsbGranolaExperiment(override val cpu: Int,
     super.cmdArguments() ++ Array("-XYcsbEnablePartition", "-XEpochQueueLength100M", "-XEnableGranola")
 }
 
-class YcsbGranolaDependencyExperiment(override val cpu: Int,
-                                      override val memory: Int,
-                                      override val skewFactor: Int,
-                                      override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
-  addAttribute("granola-depend")
-
-  override def plotSymbol = "Granola with Dependency"
-
-  override def cmdArguments() =
-    super.cmdArguments() ++ Array("-XYcsbEnablePartition", "-XEpochQueueLength100M", "-XEnableGranola", "-XYcsbGranolaDependency")
-}
-
-class YcsbLockingExperiment(override val cpu: Int,
-                            override val memory: Int,
-                            override val skewFactor: Int,
-                            override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
+class YcsbLockingExperiment(implicit val config: YcsbExperimentConfig) extends YcsbExperiment {
   addAttribute("locking")
 
   override def plotSymbol = "Locking"
 }
 
-class YcsbBatchAppendExperiment(override val cpu: Int,
-                                override val memory: Int,
-                                override val skewFactor: Int,
-                                override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
-  addAttribute("batchappend")
+class YcsbCaracalSerialExperiment(implicit val config: YcsbExperimentConfig) extends YcsbExperiment {
+  addAttribute("caracal-serial")
 
-  override def plotSymbol = "Batch Append"
+  override def plotSymbol = "Caracal with Serial Code"
 
   override def cmdArguments() =
-    super.cmdArguments() ++ Array("-XVHandleBatchAppend")
+    super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XCoreScaling10") // TODO: tuneable level?
 }
 
-class YcsbCongestionControlExperiment(override val cpu: Int,
-                                      override val memory: Int,
-                                      override val skewFactor: Int,
-                                      override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
-  addAttribute("congestion")
+class YcsbCaracalPieceExperiment(implicit val config: YcsbExperimentConfig) extends YcsbExperiment {
+  addAttribute("caracal-pieces")
 
-  override def plotSymbol = "Caracal with Congestion Control"
+  override def plotSymbol = "Caracal with Callback API"
 
   override def cmdArguments() =
-    super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XCongestionControl")
+    super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XVHandleParallel10") // TODO: tuneable level?
 }
 
-class YcsbVHandleParallelExperiment(override val cpu: Int,
-                                    override val memory: Int,
-                                    override val skewFactor: Int,
-                                    override val contended: Boolean) extends YcsbExperiment with YcsbContended with YcsbSkewed {
-  addAttribute("parallel")
-
-  override def plotSymbol = "Caracal with Parallel Pieces"
-
-  override def cmdArguments() =
-    super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XVHandleParallel")
-}
+// TODO: These TPCC runs need a lot of renovation.
 
 class BaseTpccExperiment(val nodes: Int) extends Experiment {
   override def boot() = {
@@ -270,16 +242,22 @@ object ExperimentsMain extends App {
     val all = ArrayBuffer[Experiment]()
     0 until 3 foreach { _ =>
       for (cpu <- Seq(8, 16, 24, 32)) {
-        for (contended <- Seq(true, false)) {
+        for (contentionLevel <- Seq(0, 4)) {
           for (skewFactor <- Seq(0, 90)) {
-            val mem = cpu
-            all.append(new YcsbLockingExperiment(cpu, mem, skewFactor, contended))
-            all.append(new YcsbBatchAppendExperiment(cpu, mem, skewFactor, contended))
-            all.append(new YcsbCongestionControlExperiment(cpu, mem, skewFactor, contended))
-            all.append(new YcsbGranolaExperiment(cpu, mem, skewFactor, contended))
-            all.append(new YcsbGranolaDependencyExperiment(cpu, mem, skewFactor, contended))
-            all.append(new YcsbVHandleParallelExperiment(cpu, mem, skewFactor, contended))
+            implicit val config = new YcsbExperimentConfig(cpu, cpu, skewFactor, contentionLevel)
+
+            all.append(new YcsbLockingExperiment())
+            all.append(new YcsbGranolaExperiment())
+            all.append(new YcsbCaracalPieceExperiment())
+            all.append(new YcsbCaracalSerialExperiment())
           }
+        }
+        for (skewFactor <- Seq(0, 90)) {
+          implicit val config = new YcsbExperimentConfig(cpu, cpu, skewFactor, 7, true)
+
+          // all.append(new YcsbCaracalPieceExperiment())
+          all.append(new YcsbCaracalSerialExperiment())
+          all.append(new YcsbGranolaExperiment())
         }
       }
     }
@@ -332,15 +310,17 @@ object ExperimentsMain extends App {
 
   def plotYcsb() = {
     plotTo("static/ycsb.json") { a =>
-      for (contended <- Seq(true, false)) {
-        for (skewFactor <- Seq(0, 90)) {
-          a.value ++= new YcsbLockingExperiment(0, 0, skewFactor, contended).loadResults().value
-          a.value ++= new YcsbBatchAppendExperiment(0, 0, skewFactor, contended).loadResults().value
-          a.value ++= new YcsbCongestionControlExperiment(0, 0, skewFactor, contended).loadResults().value
-          a.value ++= new YcsbVHandleParallelExperiment(0, 0, skewFactor, contended).loadResults().value
-          a.value ++= new YcsbGranolaExperiment(0, 0, skewFactor, contended).loadResults().value
-          a.value ++= new YcsbGranolaDependencyExperiment(0, 0, skewFactor, contended).loadResults().value
+      for (skewFactor <- Seq(0, 90)) {
+        for (contentionLevel <- Seq(0, 4)) {
+          implicit val config = new YcsbExperimentConfig(0, 0, skewFactor, contentionLevel)
+          a.value ++= new YcsbLockingExperiment().loadResults().value
+          a.value ++= new YcsbCaracalPieceExperiment().loadResults().value
+          a.value ++= new YcsbCaracalSerialExperiment().loadResults().value
+          a.value ++= new YcsbGranolaExperiment().loadResults().value          
         }
+        implicit val config = new YcsbExperimentConfig(0, 0, skewFactor, 7)
+        a.value ++= new YcsbCaracalSerialExperiment().loadResults().value
+        a.value ++= new YcsbGranolaExperiment().loadResults().value
       }
       a
     }

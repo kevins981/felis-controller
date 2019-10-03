@@ -62,7 +62,7 @@ trait Experiment {
     var ready = false
 
     while (!ready) {
-      Thread.sleep(3000)
+      Thread.sleep(2000)
       if (hasExited()) die()
 
       // println("Polling the process")
@@ -83,7 +83,7 @@ trait Experiment {
       }
     }
 
-    Thread.sleep(5000)
+    Thread.sleep(1000)
     println("Starting now")
     val r = requests.post(
       "http://%s/broadcast/".format(Experiment.ControllerHttp),
