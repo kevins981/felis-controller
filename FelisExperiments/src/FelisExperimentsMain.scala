@@ -26,6 +26,16 @@ trait YcsbSkewed extends Experiment {
   }
 }
 
+trait YcsbDependency extends Experiment {
+  def dependency = false
+  addAttribute(if (dependency) "dep" else "nodep")
+
+  override def cmdArguments(): Array[String] = {
+    val extra = if (dependency) Array("-XYcsbDependency") else Array[String]()
+    super.cmdArguments ++ extra
+  }
+}
+
 class YcsbExperimentConfig(
   val cpu: Int,
   val memory: Int,
@@ -34,7 +44,7 @@ class YcsbExperimentConfig(
   val dependency: Boolean = false)
 {}
 
-abstract class YcsbExperiment extends Experiment with YcsbContended with YcsbSkewed {
+abstract class YcsbExperiment extends Experiment with YcsbContended with YcsbSkewed with YcsbDependency {
   override def boot(): Unit = {
     val args = Array(os.Path.expandUser(Experiment.Binary).toString,
       "-c", Experiment.ControllerHost,
@@ -54,9 +64,7 @@ abstract class YcsbExperiment extends Experiment with YcsbContended with YcsbSke
   override def memory = config.memory
   override def skewFactor = config.skewFactor
   override def contentionLevel = config.contentionLevel
-
-  override def cmdArguments() =
-    if (config.dependency) super.cmdArguments() ++ Array("-XYcsbDependency") else super.cmdArguments()
+  override def dependency = config.dependency
 }
 
 class YcsbGranolaExperiment(implicit val config: YcsbExperimentConfig) extends YcsbExperiment {
@@ -255,7 +263,7 @@ object ExperimentsMain extends App {
         for (skewFactor <- Seq(0, 90)) {
           implicit val config = new YcsbExperimentConfig(cpu, cpu, skewFactor, 7, true)
 
-          // all.append(new YcsbCaracalPieceExperiment())
+          all.append(new YcsbCaracalPieceExperiment())
           all.append(new YcsbCaracalSerialExperiment())
           all.append(new YcsbGranolaExperiment())
         }
@@ -318,7 +326,8 @@ object ExperimentsMain extends App {
           a.value ++= new YcsbCaracalSerialExperiment().loadResults().value
           a.value ++= new YcsbGranolaExperiment().loadResults().value          
         }
-        implicit val config = new YcsbExperimentConfig(0, 0, skewFactor, 7)
+        implicit val config = new YcsbExperimentConfig(0, 0, skewFactor, 7, true)
+        a.value ++= new YcsbCaracalPieceExperiment().loadResults().value
         a.value ++= new YcsbCaracalSerialExperiment().loadResults().value
         a.value ++= new YcsbGranolaExperiment().loadResults().value
       }
