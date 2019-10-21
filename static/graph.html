@@ -17,12 +17,26 @@
       <div id="intro-v3"></div>
     </div>
     <div>
-      <div id="eval-v0"></div>
-      <div id="eval-v1"></div>
-      <div id="eval-v2"></div>
-      <div id="eval-v3"></div>
+      <h1>Without Dependency</h1>
+      <div id="nodep-v0"></div>
+      <div id="nodep-v1"></div>
+      <div id="nodep-v2"></div>
+      <div id="nodep-v3"></div>
+      <h1>With Dependency</h1>
+      <div id="dep-v4"></div>
+      <div id="dep-v5"></div>
+      <div id="dep-v6"></div>
+      <div id="dep-v7"></div>
     </div>
     <div>
+      <h1>Thresholds</h1>
+      <div id="tune-v8"></div>
+      <div id="tune-v9"></div>
+      <div id="tune-v10"></div>
+      <div id="tune-v11"></div>
+    </div>
+    <div>
+      <h1>TPC-C</h1>
       <div id="eval-hotspot-tpcc1"></div>
       <div id="eval-hotspot-tpcc2"></div>
     </div>
@@ -40,15 +54,15 @@
 		      'ticks': true,
 		  },
 		  'encoding': {
-		      'x': {'field': 'cpu', 'type': 'quantitative'},
-		      'y': {'field': 'throughput', 'type': 'quantitative'},
-		      'color': {'field': "symbol", 'type': "nominal", 'title': ''},
+		      'x': {'field': 'cpu', 'type': 'quantitative', 'title': 'CPU'},
+		      'y': {'field': 'throughput', 'type': 'quantitative', 'title': 'Throughput'},
+		      'color': {'field': "symbol", 'type': "nominal", 'title': '', 'sort': ['Caracal with Callback API', 'Caracal with Serial Code', 'Granola', 'Locking']},
 		  }
 	      },
 	      {
 		  'mark': {
 		      'type': 'line',
-		      'point': true
+		      'point': true,
 		  },
 		  'encoding': {
 		      'x': {'field': 'cpu', 'type': 'quantitative'},
@@ -78,60 +92,112 @@
       base['data']['url'] = 'ycsb.json'
 
       base['config']['range']['category'] = ['#640912', '#1f77b4']
-      
-      plot('NoContention NoSkew',
-	   'datum.attribute == "nocontention_noskew_locking" || datum.attribute == "nocontention_noskew_granola"',
-	   [0, 1500000],
+
+      plot('LowContention NoSkew',
+	   'datum.attribute == "cont0_noskew_nodep_locking" || datum.attribute == "cont0_noskew_nodep_granola"',
+	   [0, 2000000],
 	   '#intro-v0')
 
       plot('Contention NoSkew',
-	   'datum.attribute == "contention_noskew_locking" || datum.attribute == "contention_noskew_granola"',
-	   [0, 1000000],
+	   'datum.attribute == "cont7_noskew_nodep_locking" || datum.attribute == "cont7_noskew_nodep_granola"',
+	   [0, 2000000],
 	   '#intro-v1')
 
-      plot('NoContention Skew',
-	   'datum.attribute == "nocontention_skew90_locking" || datum.attribute == "nocontention_skew90_granola"',
-	   [0, 1500000],
+      plot('LowContention Skew',
+	   'datum.attribute == "cont0_skew90_nodep_locking" || datum.attribute == "cont0_skew90_nodep_granola"',
+	   [0, 2000000],
 	   '#intro-v2')
 
       plot('Contention Skew',
-	   'datum.attribute == "contention_skew90_locking" || datum.attribute == "contention_skew90_granola"',
-	   [0, 500000],
+	   'datum.attribute == "cont7_skew90_nodep_locking" || datum.attribute == "cont7_skew90_nodep_granola"',
+	   [0, 1000000],
 	   '#intro-v3')
 
-      base['config']['range']['category'] = ['#de9e14', '#d62728', '#9c1a79', '#f593da', '#1f77b4']
-      plot('NoContention NoSkew',
-	   'datum.attribute == "nocontention_noskew_locking" || datum.attribute == "nocontention_noskew_batchappend" || datum.attribute == "nocontention_noskew_allopt" || datum.attribute == "nocontention_noskew_granola" || datum.attribute == "nocontention_noskew_granola-depend"',
-	   [0, 1500000],
-	   '#eval-v0')
+      base['config']['range']['category'] = ['#f54842', '#f6a7a8', '#640912', '#1f77b4']
+      plot('LowContention NoSkew',
+	   'datum.attribute == "cont0_noskew_nodep_locking" || datum.attribute == "cont0_noskew_nodep_caracal-pieces" || datum.attribute == "cont0_noskew_nodep_caracal-serial" || datum.attribute == "cont0_noskew_nodep_granola"',
+	   [0, 2000000],
+	   '#nodep-v0')
 
       plot('Contention NoSkew',
-	   'datum.attribute == "contention_noskew_locking" || datum.attribute == "contention_noskew_batchappend" || datum.attribute == "contention_noskew_allopt" || datum.attribute == "contention_noskew_granola" || datum.attribute == "contention_noskew_granola-depend"',
-	   [0, 1000000],
-	   '#eval-v1')
+	   'datum.attribute == "cont7_noskew_nodep_locking" || datum.attribute == "cont7_noskew_nodep_caracal-pieces" || datum.attribute == "cont7_noskew_nodep_caracal-serial" || datum.attribute == "cont7_noskew_nodep_granola"',
+	   [0, 2000000],
+	   '#nodep-v1')
 
-      plot('NoContention Skew',
-	   'datum.attribute == "nocontention_skew90_locking" || datum.attribute == "nocontention_skew90_batchappend" || datum.attribute == "nocontention_skew90_allopt" || datum.attribute == "nocontention_skew90_granola" || datum.attribute == "nocontention_skew90_granola-depend"',
-	   [0, 1500000],
-	   '#eval-v2')
+      plot('LowContention Skew',
+	   'datum.attribute == "cont0_skew90_nodep_locking" || datum.attribute == "cont0_skew90_nodep_caracal-pieces" || datum.attribute == "cont0_skew90_nodep_caracal-serial" || datum.attribute == "cont0_skew90_nodep_granola"',
+	   [0, 2000000],
+	   '#nodep-v2')
 
       plot('Contention Skew',
-	   'datum.attribute == "contention_skew90_locking" || datum.attribute == "contention_skew90_batchappend" || datum.attribute == "contention_skew90_allopt" || datum.attribute == "contention_skew90_granola" || datum.attribute == "contention_skew90_granola-depend"',
-	   [0, 500000],
-	   '#eval-v3')
+	   'datum.attribute == "cont7_skew90_nodep_locking" || datum.attribute == "cont7_skew90_nodep_caracal-pieces" || datum.attribute == "cont7_skew90_nodep_caracal-serial" || datum.attribute == "cont7_skew90_nodep_granola"',
+	   [0, 1000000],
+	   '#nodep-v3')
+
+      plot('Low Contention NoSkew',
+	   'datum.attribute == "cont0_noskew_dep_locking" || datum.attribute == "cont0_noskew_dep_caracal-pieces" || datum.attribute == "cont0_noskew_dep_caracal-serial" || datum.attribute == "cont0_noskew_dep_granola"',
+	   [0, 2000000],
+	   '#dep-v4')
+      plot('High Contention NoSkew',
+	   'datum.attribute == "cont7_noskew_dep_locking" || datum.attribute == "cont7_noskew_dep_caracal-pieces" || datum.attribute == "cont7_noskew_dep_caracal-serial" || datum.attribute == "cont7_noskew_dep_granola"',
+	   [0, 800000],
+	   '#dep-v5')
+      plot('Low Contention Skew',
+	   'datum.attribute == "cont0_skew90_dep_locking" || datum.attribute == "cont0_skew90_dep_caracal-pieces" || datum.attribute == "cont0_skew90_dep_caracal-serial" || datum.attribute == "cont0_skew90_dep_granola"',
+	   [0, 2000000],
+	   '#dep-v6')
+      plot('High Contention Skew',
+	   'datum.attribute == "cont7_skew90_dep_locking" || datum.attribute == "cont7_skew90_dep_caracal-pieces" || datum.attribute == "cont7_skew90_dep_caracal-serial" || datum.attribute == "cont7_skew90_dep_granola"',
+	   [0, 800000],
+	   '#dep-v7')
 
       base['data']['url'] = 'hotspot-tpcc.json'
-      base['config']['range']['category'] = ['#d62728', '#9c1a79']
+      base['config']['range']['category'] = ['#f6a7a8', '#640912']
 
-      plot('NoSkew TPC-C',
-	   'datum.attribute == "hotspot000_allopt" || datum.attribute == "hotspot000_granola"',
+      plot('LowSkew TPC-C',
+	   'datum.attribute == "hotspot000_caracal" || datum.attribute == "hotspot000_granola"',
 	   [0, 1000000],
 	   '#eval-hotspot-tpcc1')
       plot('Skew TPC-C',
-	   'datum.attribute == "hotspot500_allopt" || datum.attribute == "hotspot500_granola"',
+	   'datum.attribute == "hotspot500_caracal" || datum.attribute == "hotspot500_granola"',
 	   [0, 1000000],
 	   '#eval-hotspot-tpcc2')
-      
+
+
+      base['data']['url'] = 'ycsb.json'
+      for (let i = 0; i < 2; i++)
+	  base['layer'][i]['encoding']['x']['field'] = 'threshold'
+
+      for (let i = 0; i < 2; i++)
+	  base['layer'][i]['encoding']['x']['title'] = 'Threshold (Number of Versions)'
+
+      base['config']['range']['category'] = ['#f54842']
+
+      plot('On Demand Splitting Threshold',
+	   'datum.threshold && test(/noskew_dep_caracal-pieces/, datum.attribute)',
+	   [0, 800000],
+	   '#tune-v8')
+
+      plot('On Demand Splitting Threshold',
+	   'datum.threshold && test(/skew90_dep_caracal-pieces/, datum.attribute)',
+	   [0, 2000000],
+	   '#tune-v9')
+
+      base['config']['range']['category'] = ['#f6a7a8']
+      for (let i = 0; i < 2; i++)
+	  base['layer'][i]['encoding']['x']['title'] = 'Threshold (%)'
+
+      plot('Core Scaling Threshold',
+	   'datum.threshold && test(/noskew_dep_caracal-serial/, datum.attribute)',
+	   [0, 800000],
+	   '#tune-v10')
+
+      plot('Core Scaling Threshold',
+	   'datum.threshold && test(/skew90_dep_caracal-serial/, datum.attribute)',
+	   [0, 2000000],
+	   '#tune-v11')
+
+
     </script>
   </body>
 </html>

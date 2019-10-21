@@ -82,27 +82,47 @@ class YcsbLockingExperiment(implicit val config: YcsbExperimentConfig) extends Y
   override def plotSymbol = "Locking"
 }
 
-class YcsbCaracalSerialExperiment(implicit val config: YcsbExperimentConfig) extends YcsbExperiment {
+class YcsbCaracalSerialExperiment(implicit val config: YcsbExperimentConfig, implicit var coreScalingThreshold: Int = -1) extends YcsbExperiment {
   addAttribute("caracal-serial")
+  if (coreScalingThreshold == -1) {
+    coreScalingThreshold = 8
+  } else {
+    addAttribute(s"t${coreScalingThreshold}")
+  }
 
   override def plotSymbol = "Caracal with Serial Code"
 
   override def cmdArguments() =
-    super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XCoreScaling10") // TODO: tuneable level?
+    super.cmdArguments() ++ Array("-XVHandleBatchAppend", s"-XCoreScaling${coreScalingThreshold}")
 }
 
-class YcsbCaracalPieceExperiment(implicit val config: YcsbExperimentConfig) extends YcsbExperiment {
+class YcsbCaracalPieceExperiment(implicit val config: YcsbExperimentConfig, implicit var parallelThreshold: Int = -1) extends YcsbExperiment {
   addAttribute("caracal-pieces")
+  if (parallelThreshold == -1) {
+    parallelThreshold = 1024
+  } else {
+    addAttribute(s"t${parallelThreshold}")
+  }
 
   override def plotSymbol = "Caracal with Callback API"
 
   override def cmdArguments() =
-    super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XVHandleParallel10") // TODO: tuneable level?
+    super.cmdArguments() ++ Array("-XVHandleBatchAppend", s"-XVHandleParallel${parallelThreshold}")
 }
 
-// TODO: These TPCC runs need a lot of renovation.
+class TpccExperimentConfig(
+  val cpu: Int,
+  val memory: Int,
+  val nodes: Int = 1)
+{}
 
-class BaseTpccExperiment(val nodes: Int) extends Experiment {
+class BaseTpccExperiment(implicit val config: TpccExperimentConfig) extends Experiment {
+
+  def nodes = config.nodes
+
+  override def cpu = config.cpu
+  override def memory = config.memory
+
   override def boot() = {
     println(s"Making outdir ${outputDir()}")
     os.makeDir.all(os.Path.expandUser(outputDir()))
@@ -123,9 +143,7 @@ class BaseTpccExperiment(val nodes: Int) extends Experiment {
   }
 }
 
-class HotspotTpccExperiment extends BaseTpccExperiment(1) {
-  def hotspotLoad = 0
-
+class HotspotTpccExperiment(implicit override val config: TpccExperimentConfig, implicit val hotspotLoad: Int = 0) extends BaseTpccExperiment {
   addAttribute("hotspot%03d".format(hotspotLoad))
 
   override def launchProcess(nodeName: String, args: Seq[String]): Unit = {
@@ -141,20 +159,20 @@ class HotspotTpccExperiment extends BaseTpccExperiment(1) {
   }
 }
 
-class HotspotTpccCongestionControlExperiment(override val cpu: Int,
-                                             override val memory: Int,
-                                             override val hotspotLoad: Int) extends HotspotTpccExperiment {
-  addAttribute("congestion")
+class HotspotTpccCaracalExperiment(
+  implicit override val config: TpccExperimentConfig,
+  implicit override val hotspotLoad: Int = 0) extends HotspotTpccExperiment {
+  addAttribute("caracal")
 
   override def plotSymbol = "Caracal"
 
   override def cmdArguments() =
-    super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XCongestionControl")
+    super.cmdArguments() ++ Array("-XVHandleBatchAppend", "-XCoreScaling10")
 }
 
-class HotspotTpccGranolaExperiment(override val cpu: Int,
-                                   override val memory: Int,
-                                   override val hotspotLoad: Int) extends HotspotTpccExperiment {
+class HotspotTpccGranolaExperiment(
+  implicit override val config: TpccExperimentConfig,
+  implicit override val hotspotLoad: Int = 0) extends HotspotTpccExperiment {
   addAttribute("granola")
 
   override def plotSymbol = "Granola"
@@ -181,7 +199,7 @@ object MultiNodeTpccExperiment {
   }
   getHostnameMapping()
 }
-
+/*
 class MultiNodeTpccExperiment(override val nodes: Int) extends BaseTpccExperiment(nodes) {
   addAttribute(s"multi${nodes}")
   override def cpu = 16
@@ -228,6 +246,7 @@ class MultiNodeTpccExperiment(override val nodes: Int) extends BaseTpccExperimen
     agg
   }
 }
+ */
 
 object ExperimentsMain extends App {
   def run(all: Seq[Experiment]) = {
@@ -249,23 +268,34 @@ object ExperimentsMain extends App {
   def runYcsb() = {
     val all = ArrayBuffer[Experiment]()
     0 until 3 foreach { _ =>
+     
+      /*
       for (cpu <- Seq(8, 16, 24, 32)) {
-        for (contentionLevel <- Seq(0, 4)) {
+        for (contend <- Seq(true)) {
           for (skewFactor <- Seq(0, 90)) {
-            implicit val config = new YcsbExperimentConfig(cpu, cpu, skewFactor, contentionLevel)
+            for (cfg <- Seq(new YcsbExperimentConfig(cpu, cpu, skewFactor, if (contend) 7 else 0 ), new YcsbExperimentConfig(cpu, cpu, skewFactor, if (contend) 7 else 0, true))) {
+              implicit val config = cfg
 
-            all.append(new YcsbLockingExperiment())
-            all.append(new YcsbGranolaExperiment())
-            all.append(new YcsbCaracalPieceExperiment())
-            all.append(new YcsbCaracalSerialExperiment())
+              all.append(new YcsbLockingExperiment())
+              all.append(new YcsbGranolaExperiment())
+              all.append(new YcsbCaracalPieceExperiment())
+              all.append(new YcsbCaracalSerialExperiment())
+            }
           }
         }
-        for (skewFactor <- Seq(0, 90)) {
-          implicit val config = new YcsbExperimentConfig(cpu, cpu, skewFactor, 7, true)
+      }
+       */
 
+      for (cfg <- Seq(new YcsbExperimentConfig(32, 32, 0, 7, true), new YcsbExperimentConfig(32, 32, 90, 0, true))) {
+        implicit val config = cfg
+        for (threshold <- (1 to 14).map(x => math.pow(2, x - 1).toInt) ++ (16384 until 32768 by 1024)) {
+          implicit val parallelThreshold = threshold
           all.append(new YcsbCaracalPieceExperiment())
+        }
+        
+        for (threshold <- 1 to 16) {
+          implicit val coreScalingThreshold = threshold
           all.append(new YcsbCaracalSerialExperiment())
-          all.append(new YcsbGranolaExperiment())
         }
       }
     }
@@ -277,15 +307,17 @@ object ExperimentsMain extends App {
     0 until 3 foreach { _ =>
       for (cpu <- Seq(8, 16, 24, 32)) {
         for (load <- Seq(0, 200, 300, 400, 500)) {
-          val mem = cpu * 2
-          all.append(new HotspotTpccCongestionControlExperiment(cpu, mem, load))
-          all.append(new HotspotTpccGranolaExperiment(cpu, mem, load))
+          implicit val config = new TpccExperimentConfig(cpu, cpu * 2)
+          implicit val hotspotLoad = load
+          all.append(new HotspotTpccCaracalExperiment())
+          all.append(new HotspotTpccGranolaExperiment())
         }
       }
     }
     run(all)
   }
 
+  /*
   def runMultiTpcc() = {
     val all = ArrayBuffer[Experiment]()
     0 until 10 foreach { _ =>
@@ -295,7 +327,7 @@ object ExperimentsMain extends App {
     }
     run(all)
   }
-
+   */
   def plotTo(filename: String)(generateFn: (ujson.Arr) => ujson.Arr) = {
     val a = generateFn(ujson.Arr())
     println(s"Writing to ${filename}")
@@ -319,17 +351,32 @@ object ExperimentsMain extends App {
   def plotYcsb() = {
     plotTo("static/ycsb.json") { a =>
       for (skewFactor <- Seq(0, 90)) {
-        for (contentionLevel <- Seq(0, 4)) {
-          implicit val config = new YcsbExperimentConfig(0, 0, skewFactor, contentionLevel)
-          a.value ++= new YcsbLockingExperiment().loadResults().value
-          a.value ++= new YcsbCaracalPieceExperiment().loadResults().value
-          a.value ++= new YcsbCaracalSerialExperiment().loadResults().value
-          a.value ++= new YcsbGranolaExperiment().loadResults().value          
+        for (contend <- Seq(true, false)) {
+          for (cfg <- Seq(new YcsbExperimentConfig(0, 0, skewFactor, if (contend) 7 else 0),
+            new YcsbExperimentConfig(0, 0, skewFactor, if (contend) 7 else 0, true))) {
+            implicit val config = cfg
+            a.value ++= new YcsbLockingExperiment().loadResults().value
+            a.value ++= new YcsbCaracalPieceExperiment().loadResults().value
+            a.value ++= new YcsbCaracalSerialExperiment().loadResults().value
+            a.value ++= new YcsbGranolaExperiment().loadResults().value
+          }
         }
-        implicit val config = new YcsbExperimentConfig(0, 0, skewFactor, 7, true)
-        a.value ++= new YcsbCaracalPieceExperiment().loadResults().value
-        a.value ++= new YcsbCaracalSerialExperiment().loadResults().value
-        a.value ++= new YcsbGranolaExperiment().loadResults().value
+      }
+
+      for (cfg <- Seq(new YcsbExperimentConfig(0, 0, 0, 7, true), new YcsbExperimentConfig(0, 0, 90, 0, true))) {
+        implicit val config = cfg
+        for (threshold <- (1 to 14).map(x => math.pow(2, x - 1).toInt) ++ (16384 until 32768 by 1024)) {
+          implicit val parallelThreshold = threshold
+          val value = new YcsbCaracalPieceExperiment().loadResults().value
+          value.foreach(x => x.obj.put("threshold", threshold))
+          a.value ++= value
+        }
+        for (threshold <- 1 to 16) {
+          implicit val coreScalingThreshold = threshold
+          val value = new YcsbCaracalSerialExperiment().loadResults().value
+          value.foreach(x => x.obj.put("threshold", threshold))
+          a.value ++= value
+        }
       }
       a
     }
@@ -337,9 +384,11 @@ object ExperimentsMain extends App {
 
   def plotHotspotTpcc() = {
     plotTo("static/hotspot-tpcc.json") { a =>
+      implicit val config = new TpccExperimentConfig(0, 0)
       for (load <- Seq(0, 500)) {
-        a.value ++= new HotspotTpccCongestionControlExperiment(0, 0, load).loadResults().value
-        a.value ++= new HotspotTpccGranolaExperiment(0, 0, load).loadResults().value
+        implicit val hotspotLoad: Int = load
+        a.value ++= new HotspotTpccCaracalExperiment().loadResults().value
+        a.value ++= new HotspotTpccGranolaExperiment().loadResults().value
       }
       a
     }
@@ -365,7 +414,7 @@ object ExperimentsMain extends App {
   } else if (args(0) == "runMultiTpcc") {
     Experiment.ControllerHttp = "142.150.234.2:8666"
     Experiment.ControllerHost = "142.150.234.2:3148"
-    runMultiTpcc()
+    // runMultiTpcc()
   } else {
     println("mismatch")
   }
