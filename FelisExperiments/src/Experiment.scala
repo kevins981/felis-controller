@@ -18,6 +18,7 @@ trait Experiment {
 
   def cpu = 16
   def memory = 16
+  def epochSize = -1
   def plotSymbol = ""
 
   // Helper function for adding a new process
@@ -79,7 +80,10 @@ trait Experiment {
         }
       } catch {
         case e: ExperimentRunException => throw e
-        case _: Throwable => println("Failed, retry")
+        case e: Throwable => {
+          e.printStackTrace()
+          println("Failed, retry")
+        }
       }
     }
 
@@ -117,5 +121,7 @@ trait Experiment {
     "-Xcpu%02d".format(cpu),
     "-Xmem%02dG".format(memory),
     "-XOutputDir%s".format(outputDir())
-  )
+  ) ++ (if (epochSize > 0) Array("-XEpochSize%d".format(epochSize)) else Array[String]())
+
+  if (epochSize > 0) addAttribute("epoch%d".format(epochSize))
 }

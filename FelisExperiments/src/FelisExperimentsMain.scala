@@ -41,7 +41,8 @@ class YcsbExperimentConfig(
   val memory: Int,
   val skewFactor: Int,
   val contentionLevel: Int,
-  val dependency: Boolean = false)
+  val dependency: Boolean = false,
+  val epochSize: Int = -1)
 {}
 
 abstract class YcsbExperiment extends Experiment with YcsbContended with YcsbSkewed with YcsbDependency {
@@ -65,6 +66,7 @@ abstract class YcsbExperiment extends Experiment with YcsbContended with YcsbSke
   override def skewFactor = config.skewFactor
   override def contentionLevel = config.contentionLevel
   override def dependency = config.dependency
+  override def epochSize = config.epochSize
 }
 
 class YcsbGranolaExperiment(implicit val config: YcsbExperimentConfig) extends YcsbExperiment {
@@ -79,7 +81,7 @@ class YcsbGranolaExperiment(implicit val config: YcsbExperimentConfig) extends Y
 class YcsbLockingExperiment(implicit val config: YcsbExperimentConfig) extends YcsbExperiment {
   addAttribute("locking")
 
-  override def plotSymbol = "Locking"
+  override def plotSymbol = "Baseline"
 }
 
 class YcsbCaracalSerialExperiment(implicit val config: YcsbExperimentConfig, implicit var coreScalingThreshold: Int = -1) extends YcsbExperiment {
@@ -90,7 +92,7 @@ class YcsbCaracalSerialExperiment(implicit val config: YcsbExperimentConfig, imp
     addAttribute(s"t${coreScalingThreshold}")
   }
 
-  override def plotSymbol = "Caracal with Serial Code"
+  override def plotSymbol = "Serial Caracal"
 
   override def cmdArguments() =
     super.cmdArguments() ++ Array("-XVHandleBatchAppend", s"-XCoreScaling${coreScalingThreshold}")
@@ -99,12 +101,12 @@ class YcsbCaracalSerialExperiment(implicit val config: YcsbExperimentConfig, imp
 class YcsbCaracalPieceExperiment(implicit val config: YcsbExperimentConfig, implicit var parallelThreshold: Int = -1) extends YcsbExperiment {
   addAttribute("caracal-pieces")
   if (parallelThreshold == -1) {
-    parallelThreshold = 1024
+    parallelThreshold = 4096
   } else {
     addAttribute(s"t${parallelThreshold}")
   }
 
-  override def plotSymbol = "Caracal with Callback API"
+  override def plotSymbol = "Parallel Caracal"
 
   override def cmdArguments() =
     super.cmdArguments() ++ Array("-XVHandleBatchAppend", s"-XVHandleParallel${parallelThreshold}")
@@ -113,7 +115,8 @@ class YcsbCaracalPieceExperiment(implicit val config: YcsbExperimentConfig, impl
 class TpccExperimentConfig(
   val cpu: Int,
   val memory: Int,
-  val nodes: Int = 1)
+  val nodes: Int = 1,
+  val epochSize: Int = -1)
 {}
 
 class BaseTpccExperiment(implicit val config: TpccExperimentConfig) extends Experiment {
@@ -122,6 +125,7 @@ class BaseTpccExperiment(implicit val config: TpccExperimentConfig) extends Expe
 
   override def cpu = config.cpu
   override def memory = config.memory
+  override def epochSize = config.epochSize
 
   override def boot() = {
     println(s"Making outdir ${outputDir()}")
@@ -268,10 +272,8 @@ object ExperimentsMain extends App {
   def runYcsb() = {
     val all = ArrayBuffer[Experiment]()
     0 until 3 foreach { _ =>
-     
-      /*
       for (cpu <- Seq(8, 16, 24, 32)) {
-        for (contend <- Seq(true)) {
+        for (contend <- Seq(false, true)) {
           for (skewFactor <- Seq(0, 90)) {
             for (cfg <- Seq(new YcsbExperimentConfig(cpu, cpu, skewFactor, if (contend) 7 else 0 ), new YcsbExperimentConfig(cpu, cpu, skewFactor, if (contend) 7 else 0, true))) {
               implicit val config = cfg
@@ -284,7 +286,6 @@ object ExperimentsMain extends App {
           }
         }
       }
-       */
 
       for (cfg <- Seq(new YcsbExperimentConfig(32, 32, 0, 7, true), new YcsbExperimentConfig(32, 32, 90, 0, true))) {
         implicit val config = cfg
@@ -292,10 +293,16 @@ object ExperimentsMain extends App {
           implicit val parallelThreshold = threshold
           all.append(new YcsbCaracalPieceExperiment())
         }
-        
+
         for (threshold <- 1 to 16) {
           implicit val coreScalingThreshold = threshold
           all.append(new YcsbCaracalSerialExperiment())
+        }
+      }
+      for (epochSize <- 5000 to 100000 by 5000) {
+        for (cfg <- Seq(new YcsbExperimentConfig(32, 32, 0, 0, true, epochSize), new YcsbExperimentConfig(32, 32, 90, 0, true, epochSize))) {
+          implicit val config = cfg
+          all.append(new YcsbCaracalPieceExperiment())
         }
       }
     }
@@ -306,12 +313,17 @@ object ExperimentsMain extends App {
     val all = ArrayBuffer[Experiment]()
     0 until 3 foreach { _ =>
       for (cpu <- Seq(8, 16, 24, 32)) {
-        for (load <- Seq(0, 200, 300, 400, 500)) {
+        for (load <- Seq(0, 200, 300, 400)) {
           implicit val config = new TpccExperimentConfig(cpu, cpu * 2)
           implicit val hotspotLoad = load
           all.append(new HotspotTpccCaracalExperiment())
           all.append(new HotspotTpccGranolaExperiment())
         }
+      }
+
+      for (epochSize <- 5000 to 100000 by 5000) {
+        implicit val config = new TpccExperimentConfig(32, 64, 1, epochSize)
+        all.append(new HotspotTpccCaracalExperiment())
       }
     }
     run(all)
@@ -368,13 +380,22 @@ object ExperimentsMain extends App {
         for (threshold <- (1 to 14).map(x => math.pow(2, x - 1).toInt) ++ (16384 until 32768 by 1024)) {
           implicit val parallelThreshold = threshold
           val value = new YcsbCaracalPieceExperiment().loadResults().value
-          value.foreach(x => x.obj.put("threshold", threshold))
+          value.foreach(x => x.obj.put("threshold", threshold.toDouble / 10000))
           a.value ++= value
         }
         for (threshold <- 1 to 16) {
           implicit val coreScalingThreshold = threshold
           val value = new YcsbCaracalSerialExperiment().loadResults().value
           value.foreach(x => x.obj.put("threshold", threshold))
+          a.value ++= value
+        }
+      }
+
+      for (epochSize <- 5000 until 100000 by 5000) {
+        for (cfg <- Seq(new YcsbExperimentConfig(0, 0, 0, 0, true, epochSize), new YcsbExperimentConfig(0, 0, 90, 0, true, epochSize))) {
+          implicit val config = cfg
+          val value = new YcsbCaracalPieceExperiment().loadResults().value
+          value.foreach(x => x.obj.put("latency", 1000.0 * epochSize / x.obj.get("throughput").get.num))
           a.value ++= value
         }
       }
@@ -385,11 +406,19 @@ object ExperimentsMain extends App {
   def plotHotspotTpcc() = {
     plotTo("static/hotspot-tpcc.json") { a =>
       implicit val config = new TpccExperimentConfig(0, 0)
-      for (load <- Seq(0, 500)) {
+      for (load <- Seq(0, 200, 300, 400)) {
         implicit val hotspotLoad: Int = load
         a.value ++= new HotspotTpccCaracalExperiment().loadResults().value
         a.value ++= new HotspotTpccGranolaExperiment().loadResults().value
       }
+
+      for (epochSize <- 5000 until 100000 by 5000) {
+        implicit val config = new TpccExperimentConfig(32, 64, 1, epochSize)
+        val value = new HotspotTpccCaracalExperiment().loadResults().value
+        value.foreach(x => x.obj.put("latency", 1000.0 * epochSize / x.obj.get("throughput").get.num))
+        a.value ++= value
+      }
+
       a
     }
   }
