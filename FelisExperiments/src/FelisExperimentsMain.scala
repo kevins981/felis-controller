@@ -441,8 +441,6 @@ object ExperimentsMain extends App {
   } else if (args(0) == "plotHotspotTpcc") {
     plotHotspotTpcc()
   } else if (args(0) == "runMultiTpcc") {
-    Experiment.ControllerHttp = "142.150.234.2:8666"
-    Experiment.ControllerHost = "142.150.234.2:3148"
     // runMultiTpcc()
   } else {
     println("mismatch")

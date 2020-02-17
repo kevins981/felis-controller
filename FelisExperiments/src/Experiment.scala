@@ -5,8 +5,8 @@ import scala.collection.mutable.ArrayBuffer
 class ExperimentRunException extends Exception {}
 
 object Experiment {
-  var ControllerHost = "127.0.0.1:3148"
-  var ControllerHttp = "127.0.0.1:8666"
+  var ControllerHost = System.getProperty("controller.host", "127.0.0.1:3148")
+  var ControllerHttp = System.getProperty("controller.http", "127.0.0.1:8666")
   var Binary = "~/workspace/felis/buck-out/gen/db#release"
   var WorkingDir = "~/workspace/felis/results"
 }
