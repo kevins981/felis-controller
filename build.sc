@@ -20,6 +20,7 @@ object FelisExperiments extends ScalaModule {
     ivy"com.lihaoyi::os-lib:0.3.0",
     ivy"com.lihaoyi::requests:0.1.8",
     ivy"com.lihaoyi::upickle:0.7.1",
+    ivy"com.flyberrycapital::scala-slack:0.3.1",
   )
   override def mainClass = Some("edu.toronto.felis.ExperimentsMain")
 }

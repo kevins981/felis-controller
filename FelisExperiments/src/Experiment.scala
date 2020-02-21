@@ -80,6 +80,10 @@ trait Experiment {
         }
       } catch {
         case e: ExperimentRunException => throw e
+        case e: requests.TimeoutException => {
+          Thread.sleep(3000)
+          println("Timeout, retry")
+        }
         case e: Throwable => {
           e.printStackTrace()
           println("Failed, retry")

@@ -1,9 +1,11 @@
 package edu.toronto.felis
 
 import java.io.{FileOutputStream, FileWriter}
+import java.net.InetAddress
 
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 import scala.util.{Failure, Success, Try}
+import com.flyberrycapital.slack.SlackClient
 
 // Configurations in the experiments
 trait YcsbContended extends Experiment {
@@ -254,58 +256,70 @@ class MultiNodeTpccExperiment(override val nodes: Int) extends BaseTpccExperimen
 
 object ExperimentsMain extends App {
   def run(all: Seq[Experiment]) = {
+    var cur = 0
+    var progress = 1
+    val tot = all.length
+    val hostname = InetAddress.getLocalHost().getHostName()
+    val slk = new SlackClient("xoxb-72287519766-446082719218-jVsV4a1rp00VVEtLMBewHKxG")
+    slk.chat.postMessage("#db", s"Experiments start running on ${hostname}. Total ${tot} experiments.")
     for (e <- all) {
-      println(s"Running ${e.attributes.mkString(" + ")}")
-      var done = false
-      while (!done) {
-        try {
-          e.run()
-          done = true
-        } catch {
-          case _: ExperimentRunException => println("Failed, re-run")
+      cur += 1
+      println(s"${hostname} Running ${e.attributes.mkString(" + ")} ${cur}/${tot}")
+      try {
+        e.run()
+      } catch {
+        case _: ExperimentRunException => {
+          slk.chat.postMessage("#db", s"Experiment on ${hostname} ${e.attributes.mkString(" + ")} failed, skipping...")
+          println("Failed")
         }
-        Thread.sleep(1000)
+      }
+      Thread.sleep(1000)
+      if (5 * cur / tot > progress) {
+        slk.chat.postMessage("#db", s"Experiments on ${hostname} in progress ${cur}/${tot}")
+        progress += 1
       }
     }
+    slk.chat.postMessage("#db", s"Experiments all done on ${hostname}.")
   }
 
   def runYcsb() = {
     val all = ArrayBuffer[Experiment]()
-    0 until 3 foreach { _ =>
-      for (cpu <- Seq(8, 16, 24, 32)) {
-        for (contend <- Seq(false, true)) {
-          for (skewFactor <- Seq(0, 90)) {
-            for (cfg <- Seq(new YcsbExperimentConfig(cpu, cpu, skewFactor, if (contend) 7 else 0 ), new YcsbExperimentConfig(cpu, cpu, skewFactor, if (contend) 7 else 0, true))) {
-              implicit val config = cfg
+    
+    for (cpu <- Seq(8, 16, 24, 32)) {
+      for (contend <- Seq(false, true)) {
+        for (skewFactor <- Seq(0, 90)) {
+          val mem = cpu * 2
+          for (cfg <- Seq(new YcsbExperimentConfig(cpu, mem, skewFactor, if (contend) 7 else 0 ), new YcsbExperimentConfig(cpu, mem, skewFactor, if (contend) 7 else 0, true))) {
+            implicit val config = cfg
 
-              all.append(new YcsbLockingExperiment())
-              all.append(new YcsbGranolaExperiment())
-              all.append(new YcsbCaracalPieceExperiment())
-              all.append(new YcsbCaracalSerialExperiment())
-            }
+            all.append(new YcsbLockingExperiment())
+            all.append(new YcsbGranolaExperiment())
+            all.append(new YcsbCaracalPieceExperiment())
+            all.append(new YcsbCaracalSerialExperiment())
           }
         }
       }
+    }
 
-      for (cfg <- Seq(new YcsbExperimentConfig(32, 32, 0, 7, true), new YcsbExperimentConfig(32, 32, 90, 0, true))) {
-        implicit val config = cfg
-        for (threshold <- (1 to 14).map(x => math.pow(2, x - 1).toInt) ++ (16384 until 32768 by 1024)) {
-          implicit val parallelThreshold = threshold
-          all.append(new YcsbCaracalPieceExperiment())
-        }
-
-        for (threshold <- 1 to 16) {
-          implicit val coreScalingThreshold = threshold
-          all.append(new YcsbCaracalSerialExperiment())
-        }
+    for (cfg <- Seq(new YcsbExperimentConfig(32, 32, 0, 7, true), new YcsbExperimentConfig(32, 32, 90, 0, true))) {
+      implicit val config = cfg
+      for (threshold <- (1 to 14).map(x => math.pow(2, x - 1).toInt) ++ (24*1024 until 32*1024 by 1024)) {
+        implicit val parallelThreshold = threshold
+        all.append(new YcsbCaracalPieceExperiment())
       }
-      for (epochSize <- 5000 to 100000 by 5000) {
-        for (cfg <- Seq(new YcsbExperimentConfig(32, 32, 0, 0, true, epochSize), new YcsbExperimentConfig(32, 32, 90, 0, true, epochSize))) {
-          implicit val config = cfg
-          all.append(new YcsbCaracalPieceExperiment())
-        }
+
+      for (threshold <- (1 until 8) ++ (8 until 16 by 2)) {
+        implicit val coreScalingThreshold = threshold
+        all.append(new YcsbCaracalSerialExperiment())
       }
     }
+    for (epochSize <- 5000 to 100000 by 5000) {
+      for (cfg <- Seq(new YcsbExperimentConfig(32, 32, 0, 0, true, epochSize), new YcsbExperimentConfig(32, 32, 90, 0, true, epochSize))) {
+        implicit val config = cfg
+        all.append(new YcsbCaracalPieceExperiment())
+      }
+    }
+
     run(all)
   }
 
@@ -377,13 +391,13 @@ object ExperimentsMain extends App {
 
       for (cfg <- Seq(new YcsbExperimentConfig(0, 0, 0, 7, true), new YcsbExperimentConfig(0, 0, 90, 0, true))) {
         implicit val config = cfg
-        for (threshold <- (1 to 14).map(x => math.pow(2, x - 1).toInt) ++ (16384 until 32768 by 1024)) {
+        for (threshold <- (1 to 14).map(x => math.pow(2, x - 1).toInt) ++ (24*1024 until 32*1024 by 1024)) {
           implicit val parallelThreshold = threshold
           val value = new YcsbCaracalPieceExperiment().loadResults().value
           value.foreach(x => x.obj.put("threshold", threshold.toDouble / 10000))
           a.value ++= value
         }
-        for (threshold <- 1 to 16) {
+        for (threshold <- (1 until 8) ++ (8 until 16 by 2)) {
           implicit val coreScalingThreshold = threshold
           val value = new YcsbCaracalSerialExperiment().loadResults().value
           value.foreach(x => x.obj.put("threshold", threshold))
