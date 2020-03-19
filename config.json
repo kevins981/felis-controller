@@ -29,10 +29,6 @@
       "index_shipper": {"host": "142.150.234.172", "port": 43411}
     }
   ],
-  "tpcc": {
-    "hot_warehouses": [],
-    "offload_nodes": []
-  },
   "controller": {
     "http_port": 8666,
     "rpc_port": 3148
