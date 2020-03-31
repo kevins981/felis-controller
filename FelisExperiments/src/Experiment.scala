@@ -1,6 +1,13 @@
 package edu.toronto.felis
 
+import java.io.FileWriter
+import java.net.{InetAddress, SocketTimeoutException}
+
+import com.flyberrycapital.slack.SlackClient
+
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.TreeMap
+import scala.util.{Failure, Success, Try}
 
 class ExperimentRunException extends Exception {}
 
@@ -53,7 +60,7 @@ trait Experiment {
     return false
   }
 
-  private def die() = {
+  protected def die() = {
     kill()
     throw new ExperimentRunException()
   }
@@ -121,11 +128,143 @@ trait Experiment {
 
   def addAttribute(attr: String) = attributes.append(attr)
   def outputDir() = (os.Path.expandUser(Experiment.WorkingDir).toString +: attributes).mkString("/")
-  def cmdArguments() = Array(
-    "-Xcpu%02d".format(cpu),
-    "-Xmem%02dG".format(memory),
-    "-XOutputDir%s".format(outputDir())
-  ) ++ (if (epochSize > 0) Array("-XEpochSize%d".format(epochSize)) else Array[String]())
+  def cmdArguments() = {
+    val maxEpochs = if (epochSize > 0) 4000000 / epochSize else 40
+    Array(
+      "-Xcpu%02d".format(cpu),
+      "-Xmem%02dG".format(memory),
+      "-XOutputDir%s".format(outputDir())
+    ) ++ (if (epochSize > 0) Array(s"-XEpochSize${epochSize}", s"-XNrEpoch${maxEpochs}") else Array[String]())
+  }
 
   if (epochSize > 0) addAttribute("epoch%d".format(epochSize))
+}
+
+object ExperimentSuite {
+  private val suites = TreeMap[String, ExperimentSuite]()
+  private val ProgressBarWidth = 20
+
+  private def run(name: String, desc: String, all: Seq[Experiment]) = {
+    var cur = 0
+    var progress = -1
+    val tot = all.length
+    val hostname = InetAddress.getLocalHost().getHostName()
+    val slkToken = System.getProperty("slackToken")
+    val slk = if (slkToken != null) Some(new SlackClient(slkToken)) else None
+
+    val header = s"Experiments start running on ${hostname}. Total ${tot} experiments.\n${name}: ${desc}\n"
+    val msg = slk.map { _.chat.postMessage("#db", header) }
+    for (e <- all) {
+      cur += 1
+      if (ProgressBarWidth * cur / tot > progress) {
+        progress += 1
+        try {
+          slk.map {
+            _.chat.update(msg.get,
+              header + s"`Progress [${"=".repeat(progress) + " ".repeat(ProgressBarWidth - progress)}] ${cur}/${tot}`")
+          }
+        } catch {
+          case e: SocketTimeoutException => println("Slack update failed, ignoring")
+        }
+      }
+
+      println(s"${hostname} Running ${e.attributes.mkString(" + ")} ${cur}/${tot}")
+      try {
+        e.run()
+      } catch {
+        case _: ExperimentRunException => {
+          var again = false
+          do {
+            try {
+              slk.map {
+                _.chat.postMessage("#db", s"Experiment on ${hostname} ${e.attributes.mkString(" + ")} failed, skipping...")
+              }
+            } catch {
+              case e: SocketTimeoutException => again = true
+              case _: Throwable => {}
+            }
+          } while (again)
+
+          println("Failed")
+        }
+      }
+      Thread.sleep(1000)
+    }
+    Thread.sleep(1000)
+    slk.map {
+      _.chat.postMessage("#db", s"Experiments all done on ${hostname}.")
+    }
+  }
+
+  def invoke(name: String) = {
+    suites.get(name) match {
+      case Some(s) => {
+        val runs = ArrayBuffer[Experiment]()
+        s.setup(runs)
+        run(s.name, s.description, runs)
+      }
+      case None => {
+        show()
+      }
+    }
+  }
+
+  def show() = {
+    println("Available runs: ")
+    for (k <- suites.keys) {
+      println(s" run${k}: ${suites(k).description}")
+    }
+    println()
+  }
+
+  def apply(name: String, description: String)(setup: (ArrayBuffer[Experiment]) => Unit): Unit = {
+    val s = new ExperimentSuite(name, description, setup)
+    suites(s.name) = s
+  }
+}
+
+case class ExperimentSuite(val name: String, val description: String, val setup: (ArrayBuffer[Experiment]) => Unit) {}
+
+object PlotSuite {
+  private val suites = TreeMap[String, (String, () => ujson.Arr)]()
+
+  def show() = {
+    println("Available plots: ")
+    for (k <- suites.keys) {
+      println(s" plot${k}")
+    }
+    println()
+  }
+
+  def invoke(name: String) = {
+    suites.get(name) match {
+      case Some(s) => {
+        val (filename, fn) = s
+        val a = fn()
+        println(s"Writing to ${filename}")
+
+        val file = Try(
+          new FileWriter(filename))
+
+        file match {
+          case Success(f) => try {
+            ujson.writeTo(a, f)
+          } catch {
+            case e: Exception => e.printStackTrace()
+          } finally {
+            f.close()
+          }
+          case Failure(_) =>
+            println(s"Cannot write to file ${filename}")
+        }
+      }
+      case None => {
+        show()
+      }
+    }
+  }
+
+  def apply(name: String, filename: String)(fn: () => ujson.Arr) = {
+    suites(name) = (filename, fn)
+  }
 }

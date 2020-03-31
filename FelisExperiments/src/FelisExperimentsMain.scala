@@ -1,42 +1,6 @@
 package edu.toronto.felis
 
-import java.io.{FileOutputStream, FileWriter}
-import java.net.InetAddress
-
 import scala.collection.mutable.{ArrayBuffer, HashMap}
-import scala.util.{Failure, Success, Try}
-import com.flyberrycapital.slack.SlackClient
-
-// Configurations in the experiments
-trait YcsbContended extends Experiment {
-  def contentionLevel = 0
-  addAttribute(s"cont${contentionLevel}")
-
-  override def cmdArguments(): Array[String] = {
-    val extra = if (contentionLevel == 0) Array("-XYcsbReadOnly8") else Array(s"-XYcsbContentionKey${contentionLevel}")
-    super.cmdArguments() ++ extra
-  }
-}
-
-trait YcsbSkewed extends Experiment {
-  def skewFactor = 0
-  addAttribute(if (skewFactor == 0) "noskew" else "skew%02d".format(skewFactor))
-
-  override def cmdArguments(): Array[String] = {
-    val extra = if (skewFactor > 0) Array("-XYcsbSkewFactor%02d".format(skewFactor)) else Array[String]()
-    super.cmdArguments() ++ extra
-  }
-}
-
-trait YcsbDependency extends Experiment {
-  def dependency = false
-  addAttribute(if (dependency) "dep" else "nodep")
-
-  override def cmdArguments(): Array[String] = {
-    val extra = if (dependency) Array("-XYcsbDependency") else Array[String]()
-    super.cmdArguments ++ extra
-  }
-}
 
 class YcsbExperimentConfig(
   val cpu: Int,
@@ -46,6 +10,22 @@ class YcsbExperimentConfig(
   val dependency: Boolean = false,
   val epochSize: Int = -1)
 {}
+
+// Configurations in the experiments
+trait YcsbContended extends Experiment {
+  def contentionLevel = 0
+  addAttribute(s"cont${contentionLevel}")
+}
+
+trait YcsbSkewed extends Experiment {
+  def skewFactor = 0
+  addAttribute(if (skewFactor == 0) "noskew" else "skew%02d".format(skewFactor))
+}
+
+trait YcsbDependency extends Experiment {
+  def dependency = false
+  addAttribute(if (dependency) "dep" else "nodep")
+}
 
 abstract class YcsbExperiment extends Experiment with YcsbContended with YcsbSkewed with YcsbDependency {
   override def boot(): Unit = {
@@ -69,8 +49,55 @@ abstract class YcsbExperiment extends Experiment with YcsbContended with YcsbSke
   override def contentionLevel = config.contentionLevel
   override def dependency = config.dependency
   override def epochSize = config.epochSize
+
+  override def cmdArguments(): Array[String] = {
+    super.cmdArguments() ++
+      (if (contentionLevel == 0) Array("-XYcsbReadOnly8") else Array(s"-XYcsbContentionKey${contentionLevel}")) ++
+      (if (skewFactor > 0) Array("-XYcsbSkewFactor%02d".format(skewFactor)) else Array[String]()) ++
+      (if (dependency) Array("-XYcsbDependency") else Array[String]())
+  }
 }
 
+class YcsbFoedusExperiment(implicit val config: YcsbExperimentConfig) extends Experiment with YcsbContended with YcsbSkewed {
+  addAttribute("dep")
+  addAttribute("foedus")
+
+  override def cpu = config.cpu
+  override def memory = config.memory
+  override def skewFactor = config.skewFactor
+  override def contentionLevel = config.contentionLevel
+
+  override def boot(): Unit = {}
+
+  override def run(): Unit = {
+    val args = Array(os.Path.expandUser("~/workspace/foedus/Release/experiments-core/src/foedus/ycsb/ycsb_masstree").toString,
+    "-thread_per_node=8", s"-numa_nodes=${cpu / 8}", "-snapshot_pool_size=1", "-reducer_buffer_size=1",
+      "-loggers_per_node=2", "-volatile_pool_size=16",
+      "-log_buffer_mb=512", "-duration_micro=10000000",
+      "-workload=F", "-max_scan_length=1000", "-read_all_fields=1", "-write_all_fields=0",
+      "-initial_table_size=16777216", "-random_inserts=0", "-ordered_inserts=0", "-sort_load_keys=0", "-fork_workers=true",
+      "-verify_loaded_data=0", "-rmw_additional_reads=0", "-null_log_device=true", "-hot_threshold=32", "-sort_keys=0",
+      "-extended_rw_lock=1", "-enable_retrospective_lock_list=0", "-extra_table_size=0",
+      "-extra_table_rmws=0", "-extra_table_reads=0", "-distinct_keys=0", s"-caracal_output=${outputDir()}") ++ cmdArguments()
+
+    println(s"Making outdir ${outputDir()}")
+    os.makeDir.all(os.Path.expandUser(outputDir()))
+
+    println(s"Running Foedus ${args.mkString(" ")}")
+    spawnProcess(args)
+
+    waitToFinish()
+  }
+
+  override def cmdArguments(): Array[String] = {
+    if (contentionLevel == 0) Array("-reps_per_tx=2", "-rmw_additional_reads=8") else Array("-reps_per_tx=10", "-rmw_additional_reads=0", "-caracal_contention=7") ++
+    Array("-zipfian_theta=0.%02d".format(skewFactor))
+  }
+
+  override def plotSymbol = "Foedus"
+}
+
+// Baselines
 class YcsbGranolaExperiment(implicit val config: YcsbExperimentConfig) extends YcsbExperiment {
   addAttribute("granola")
 
@@ -138,7 +165,7 @@ class BaseTpccExperiment(implicit val config: TpccExperimentConfig) extends Expe
     for (i <- 1 to nodes) {
       val nodeName = s"host${i}"
       val args = Array(Experiment.Binary, "-c", Experiment.ControllerHost, "-n", nodeName, "-w", "tpcc",
-        "-XEpochQueueLength1m", "-XNrEpoch40", s"-XMaxNodeLimit${nodes}", s"-XTpccWarehouses${warehouses}") ++ cmdArguments()
+        "-XEpochQueueLength1m", s"-XMaxNodeLimit${nodes}", s"-XTpccWarehouses${warehouses}") ++ cmdArguments()
 
       launchProcess(nodeName, args)
     }
@@ -255,210 +282,136 @@ class MultiNodeTpccExperiment(override val nodes: Int) extends BaseTpccExperimen
  */
 
 object ExperimentsMain extends App {
-  def run(all: Seq[Experiment]) = {
-    var cur = 0
-    var progress = 1
-    val tot = all.length
-    val hostname = InetAddress.getLocalHost().getHostName()
-    val slk = new SlackClient("xoxb-72287519766-446082719218-jVsV4a1rp00VVEtLMBewHKxG")
-    slk.chat.postMessage("#db", s"Experiments start running on ${hostname}. Total ${tot} experiments.")
-    for (e <- all) {
-      cur += 1
-      println(s"${hostname} Running ${e.attributes.mkString(" + ")} ${cur}/${tot}")
-      try {
-        e.run()
-      } catch {
-        case _: ExperimentRunException => {
-          slk.chat.postMessage("#db", s"Experiment on ${hostname} ${e.attributes.mkString(" + ")} failed, skipping...")
-          println("Failed")
-        }
-      }
-      Thread.sleep(1000)
-      if (5 * cur / tot > progress) {
-        slk.chat.postMessage("#db", s"Experiments on ${hostname} in progress ${cur}/${tot}")
-        progress += 1
-      }
-    }
-    slk.chat.postMessage("#db", s"Experiments all done on ${hostname}.")
-  }
 
-  def runYcsb() = {
-    val all = ArrayBuffer[Experiment]()
-    
+  ExperimentSuite("Ycsb", "Ycsb on Foedus/Granola/RBR(Locking)/Caracal") { runs: ArrayBuffer[Experiment] =>
     for (cpu <- Seq(8, 16, 24, 32)) {
       for (contend <- Seq(false, true)) {
         for (skewFactor <- Seq(0, 90)) {
           val mem = cpu * 2
-          for (cfg <- Seq(new YcsbExperimentConfig(cpu, mem, skewFactor, if (contend) 7 else 0 ), new YcsbExperimentConfig(cpu, mem, skewFactor, if (contend) 7 else 0, true))) {
+          for (cfg <- Seq(new YcsbExperimentConfig(cpu, mem, skewFactor, if (contend) 7 else 0), new YcsbExperimentConfig(cpu, mem, skewFactor, if (contend) 7 else 0, true))) {
             implicit val config = cfg
 
-            all.append(new YcsbLockingExperiment())
-            all.append(new YcsbGranolaExperiment())
-            all.append(new YcsbCaracalPieceExperiment())
-            all.append(new YcsbCaracalSerialExperiment())
+            runs.append(new YcsbFoedusExperiment())
+            runs.append(new YcsbLockingExperiment())
+            runs.append(new YcsbGranolaExperiment())
+            runs.append(new YcsbCaracalPieceExperiment())
+            runs.append(new YcsbCaracalSerialExperiment())
           }
         }
       }
     }
+  }
 
+  ExperimentSuite("YcsbTuning", "Tuning thresholds") { runs: ArrayBuffer[Experiment] =>
     for (cfg <- Seq(new YcsbExperimentConfig(32, 32, 0, 7, true), new YcsbExperimentConfig(32, 32, 90, 0, true))) {
       implicit val config = cfg
-      for (threshold <- (1 to 14).map(x => math.pow(2, x - 1).toInt) ++ (24*1024 until 32*1024 by 1024)) {
+      for (threshold <- (1 to 14).map(x => math.pow(2, x - 1).toInt) ++ (9 * 1024 until 16 * 1024 by 1024)) {
         implicit val parallelThreshold = threshold
-        all.append(new YcsbCaracalPieceExperiment())
+        runs.append(new YcsbCaracalPieceExperiment())
       }
 
-      for (threshold <- (1 until 8) ++ (8 until 16 by 2)) {
+      for (threshold <- (1 to 12)) {
         implicit val coreScalingThreshold = threshold
-        all.append(new YcsbCaracalSerialExperiment())
+        runs.append(new YcsbCaracalSerialExperiment())
       }
     }
+  }
+
+  ExperimentSuite("TpccSingle", "Tpcc with different hotspots (or no hotspot at all)") { runs: ArrayBuffer[Experiment] =>
+    for (cpu <- Seq(8, 16, 24, 32)) {
+      for (load <- Seq(0, 200, 300, 400)) {
+        implicit val config = new TpccExperimentConfig(cpu, cpu * 2)
+        implicit val hotspotLoad = load
+        runs.append(new HotspotTpccCaracalExperiment())
+        runs.append(new HotspotTpccGranolaExperiment())
+      }
+    }
+  }
+
+  ExperimentSuite("EpochSizeTuning", "Tpcc with different epoch sizes") { runs: ArrayBuffer[Experiment] =>
     for (epochSize <- 5000 to 100000 by 5000) {
       for (cfg <- Seq(new YcsbExperimentConfig(32, 32, 0, 0, true, epochSize), new YcsbExperimentConfig(32, 32, 90, 0, true, epochSize))) {
         implicit val config = cfg
-        all.append(new YcsbCaracalPieceExperiment())
+        runs.append(new YcsbCaracalPieceExperiment())
       }
-    }
-
-    run(all)
-  }
-
-  def runHotspotTpcc() = {
-    val all = ArrayBuffer[Experiment]()
-    0 until 3 foreach { _ =>
-      for (cpu <- Seq(8, 16, 24, 32)) {
-        for (load <- Seq(0, 200, 300, 400)) {
-          implicit val config = new TpccExperimentConfig(cpu, cpu * 2)
-          implicit val hotspotLoad = load
-          all.append(new HotspotTpccCaracalExperiment())
-          all.append(new HotspotTpccGranolaExperiment())
-        }
-      }
-
-      for (epochSize <- 5000 to 100000 by 5000) {
-        implicit val config = new TpccExperimentConfig(32, 64, 1, epochSize)
-        all.append(new HotspotTpccCaracalExperiment())
-      }
-    }
-    run(all)
-  }
-
-  /*
-  def runMultiTpcc() = {
-    val all = ArrayBuffer[Experiment]()
-    0 until 10 foreach { _ =>
-      1 to 4 foreach { i =>
-        all += new MultiNodeTpccExperiment(i)
-      }
-    }
-    run(all)
-  }
-   */
-  def plotTo(filename: String)(generateFn: (ujson.Arr) => ujson.Arr) = {
-    val a = generateFn(ujson.Arr())
-    println(s"Writing to ${filename}")
-
-    val file = Try(
-      new FileWriter(filename))
-
-    file match {
-      case Success(f) => try {
-        ujson.writeTo(a, f)
-      } catch {
-        case e: Exception => e.printStackTrace()
-      } finally {
-        f.close()
-      }
-      case Failure(_) =>
-        println("Cannot write to file")
+      implicit val config = new TpccExperimentConfig(32, 64, 1, epochSize)
+      runs.append(new HotspotTpccCaracalExperiment())
     }
   }
 
-  def plotYcsb() = {
-    plotTo("static/ycsb.json") { a =>
-      for (skewFactor <- Seq(0, 90)) {
-        for (contend <- Seq(true, false)) {
-          for (cfg <- Seq(new YcsbExperimentConfig(0, 0, skewFactor, if (contend) 7 else 0),
-            new YcsbExperimentConfig(0, 0, skewFactor, if (contend) 7 else 0, true))) {
-            implicit val config = cfg
-            a.value ++= new YcsbLockingExperiment().loadResults().value
-            a.value ++= new YcsbCaracalPieceExperiment().loadResults().value
-            a.value ++= new YcsbCaracalSerialExperiment().loadResults().value
-            a.value ++= new YcsbGranolaExperiment().loadResults().value
-          }
-        }
-      }
-
-      for (cfg <- Seq(new YcsbExperimentConfig(0, 0, 0, 7, true), new YcsbExperimentConfig(0, 0, 90, 0, true))) {
-        implicit val config = cfg
-        for (threshold <- (1 to 14).map(x => math.pow(2, x - 1).toInt) ++ (24*1024 until 32*1024 by 1024)) {
-          implicit val parallelThreshold = threshold
-          val value = new YcsbCaracalPieceExperiment().loadResults().value
-          value.foreach(x => x.obj.put("threshold", threshold.toDouble / 10000))
-          a.value ++= value
-        }
-        for (threshold <- (1 until 8) ++ (8 until 16 by 2)) {
-          implicit val coreScalingThreshold = threshold
-          val value = new YcsbCaracalSerialExperiment().loadResults().value
-          value.foreach(x => x.obj.put("threshold", threshold))
-          a.value ++= value
-        }
-      }
-
-      for (epochSize <- 5000 until 100000 by 5000) {
-        for (cfg <- Seq(new YcsbExperimentConfig(0, 0, 0, 0, true, epochSize), new YcsbExperimentConfig(0, 0, 90, 0, true, epochSize))) {
+  PlotSuite("Ycsb", "static/ycsb.json") { () =>
+    val a = ujson.Arr()
+    for (skewFactor <- Seq(0, 90)) {
+      for (contend <- Seq(true, false)) {
+        for (cfg <- Seq(new YcsbExperimentConfig(0, 0, skewFactor, if (contend) 7 else 0),
+          new YcsbExperimentConfig(0, 0, skewFactor, if (contend) 7 else 0, true))) {
           implicit val config = cfg
-          val value = new YcsbCaracalPieceExperiment().loadResults().value
-          value.foreach(x => x.obj.put("latency", 1000.0 * epochSize / x.obj.get("throughput").get.num))
-          a.value ++= value
+          a.value ++= new YcsbFoedusExperiment().loadResults().value
+          a.value ++= new YcsbLockingExperiment().loadResults().value
+          a.value ++= new YcsbCaracalPieceExperiment().loadResults().value
+          a.value ++= new YcsbCaracalSerialExperiment().loadResults().value
+          a.value ++= new YcsbGranolaExperiment().loadResults().value
         }
       }
-      a
     }
-  }
 
-  def plotHotspotTpcc() = {
-    plotTo("static/hotspot-tpcc.json") { a =>
-      implicit val config = new TpccExperimentConfig(0, 0)
-      for (load <- Seq(0, 200, 300, 400)) {
-        implicit val hotspotLoad: Int = load
-        a.value ++= new HotspotTpccCaracalExperiment().loadResults().value
-        a.value ++= new HotspotTpccGranolaExperiment().loadResults().value
+    for (cfg <- Seq(new YcsbExperimentConfig(0, 0, 0, 7, true), new YcsbExperimentConfig(0, 0, 90, 0, true))) {
+      implicit val config = cfg
+      for (threshold <- (1 to 14).map(x => math.pow(2, x - 1).toInt) ++ (9 * 1024 until 16 * 1024 by 1024)) {
+        implicit val parallelThreshold = threshold
+        val value = new YcsbCaracalPieceExperiment().loadResults().value
+        value.foreach(x => x.obj.put("threshold", threshold.toDouble / 10000))
+        a.value ++= value
       }
+      for (threshold <- (1 to 12)) {
+        implicit val coreScalingThreshold = threshold
+        val value = new YcsbCaracalSerialExperiment().loadResults().value
+        value.foreach(x => x.obj.put("threshold", threshold))
+        a.value ++= value
+      }
+    }
 
-      for (epochSize <- 5000 until 100000 by 5000) {
-        implicit val config = new TpccExperimentConfig(32, 64, 1, epochSize)
-        val value = new HotspotTpccCaracalExperiment().loadResults().value
+    for (epochSize <- 5000 until 100000 by 5000) {
+      for (cfg <- Seq(new YcsbExperimentConfig(0, 0, 0, 0, true, epochSize), new YcsbExperimentConfig(0, 0, 90, 0, true, epochSize))) {
+        implicit val config = cfg
+        val value = new YcsbCaracalPieceExperiment().loadResults().value
         value.foreach(x => x.obj.put("latency", 1000.0 * epochSize / x.obj.get("throughput").get.num))
         a.value ++= value
       }
-
-      a
     }
+    a
   }
 
-  def plotMultiTpcc() = {
-    // TODO:
+  PlotSuite("TpccSingle", "static/hotspot-tpcc.json") { () =>
+    val a = ujson.Arr()
+    implicit val config = new TpccExperimentConfig(0, 0)
+    for (load <- Seq(0, 200, 300, 400)) {
+      implicit val hotspotLoad: Int = load
+      a.value ++= new HotspotTpccCaracalExperiment().loadResults().value
+      a.value ++= new HotspotTpccGranolaExperiment().loadResults().value
+    }
+
+    for (epochSize <- 5000 until 100000 by 5000) {
+      implicit val config = new TpccExperimentConfig(32, 64, 1, epochSize)
+      val value = new HotspotTpccCaracalExperiment().loadResults().value
+      value.foreach(x => x.obj.put("latency", 1000.0 * epochSize / x.obj.get("throughput").get.num))
+      a.value ++= value
+    }
+
+    a
   }
+
 
   if (args.length == 0) {
-    println("runYcsb|runMultiTpcc|plotYcsb|plotMultiTpcc")
+    ExperimentSuite.show()
+    PlotSuite.show()
     sys.exit(-1)
   }
 
-  if (args(0) == "runYcsb") {
-    runYcsb()
-  } else if (args(0) == "plotYcsb") {
-    plotYcsb()
-  } else if (args(0) == "runHotspotTpcc") {
-    runHotspotTpcc()
-  } else if (args(0) == "plotHotspotTpcc") {
-    plotHotspotTpcc()
-  } else if (args(0) == "runMultiTpcc") {
-    // runMultiTpcc()
-  } else {
-    println("mismatch")
+  if (args(0).startsWith("run")) {
+    ExperimentSuite.invoke(args(0).substring(3))
+  } else if (args(0).startsWith("plot")) {
+    PlotSuite.invoke(args(0).substring(4))
   }
 
-  sys.exit(0)
 }
