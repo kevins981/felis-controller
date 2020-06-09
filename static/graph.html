@@ -1,246 +1,503 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Locking vs Partition</title>
-    <script src="https://cdn.jsdelivr.net/npm/vega@5.7.2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vega-lite@4.0.0-beta.10"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vega-embed@5.1.3"></script>
+    <title>Performance</title>
+    <meta charset="utf-8" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vega/5.11.1/vega.min.js" integrity="sha256-IKctSAAIo6QHd7b5UYD/4fZWUAn08JbxPOdFJUN9Sw4=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vega-lite/4.12.0/vega-lite.min.js" integrity="sha256-hj+D0JNdBLki5Wa1Jd69hHkEFWsgkxMj3YJ5nKkUlKs=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vega-embed/6.8.0/vega-embed.min.js" integrity="sha256-bZrMdNqlZTPN546JdbmxYTG2tdNkgd8Tz+FbfV37+Dc=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.min.js" integrity="sha256-VeNaFBVDhoX3H+gJ37DpT/nTuZTdjYro9yBruHjVmoQ=" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pure/2.0.3/pure.min.css" integrity="sha256-jYujp4Kf07YDuUF9i1MHo4AnpXUKuHxIUXH7CrHxdKw=" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pure/2.0.3/grids-responsive.min.css" integrity="sha256-oHoCVCBefcfXyV4vImj96V0B4hH1rZB6xemUGcgl180=" crossorigin="anonymous" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <style media="screen">
+      /* Add space between Vega-Embed links  */
+      .vega-actions a {
+          margin-right: 5px;
+      }
+      .vega-embed {
+	  margin-right: 50px;
+      }
+    </style>
     <style media="print">
     .vega-embed { display: inline-block; }
     </style>
   </head>
   <body>
-    <div>
-      <div id="intro-v0"></div>
-      <div id="intro-v1"></div>
-      <div id="intro-v2"></div>
-      <div id="intro-v3"></div>
+    <div class="pure-g">
+      <h1 class="pure-u-1-1">YCSB</h1>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="ycsb00"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="ycsb30"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="ycsb60"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="ycsb90"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="ycsb120"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="ycsbc00"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="ycsbc90"></div></div>
     </div>
-    <div>
-      <h1>Without Dependency</h1>
-      <div id="nodep-v0"></div>
-      <div id="nodep-v1"></div>
-      <div id="nodep-v2"></div>
-      <div id="nodep-v3"></div>
-      <h1>With Dependency</h1>
-      <div id="dep-v0"></div>
-      <!-- <div id="dep-v1"></div> -->
-      <div id="dep-v2"></div>
-      <!-- <div id="dep-v3"></div> -->
+    <div class="pure-g">
+      <h1 class="pure-u-1-1">TPC-C</h1>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="tpcc0"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="tpcc1"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="tpcc2"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="tpcc3"></div></div>
     </div>
-    <div>
-      <h1>Thresholds</h1>
-      <div id="tune-v8"></div>
-      <div id="tune-v9"></div>
-      <div id="tune-v10"></div>
-      <div id="tune-v11"></div>
-      <h1>Epoch Size</h1>
-      <div id="epoch-1"></div>
-      <div id="epoch-2"></div>
+
+    <div class="pure-g">
+      <h1 class="pure-u-1-1">Optimizations</h1>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="testopt0"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="testopt1"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="testopt2"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="testopt3"></div></div>
+      <h1 class="pure-u-1-1">Thresholds</h1>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="threshold0"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="threshold1"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="threshold2"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="threshold3"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="hist0"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="hist1"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="hist2"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="hist3"></div></div>
+
+      <div class="pure-u-1">
+	<!--
+	<table class="pure-table">
+	  <thead>
+	    <tr>
+	      <th></th>
+	      <th>Rows Have More Versions Than Threshold (Red)</th>
+	      <th>Rows Triggered the Split</th>
+	    </tr>
+	  </thead>
+	  <tr>
+	    <td>YCSB+Skew</td>
+	    <td>0</td>
+	    <td>0</td>
+	  </tr>
+	  <tr>
+	    <td>YCSB+Contention</td>
+	    <td>77</td>
+	    <td>77</td>
+	  </tr>
+	  <tr>
+	    <td>YCSB+Contention+Skew</td>
+	    <td>84</td>
+	    <td>84</td>
+	  </tr>
+	  <tr>
+	    <td>TPC-C Single Warehouse</td>
+	    <td>15071</td>
+	    <td>12961</td>
+	  </tr>
+	</table>
+
+	<div>To generate LaTeX: copy the table to clipboard and go to <a href="https://www.tablesgenerator.com/">https://www.tablesgenerator.com/</a>.</div>
+	-->
+      </div>
+
+      <h1 class="pure-u-1-1">Memory</h1>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem0"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem1"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem2"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem3"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem4"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem5"></div></div>
+
+      <h1 class="pure-u-1-1">Latency</h1>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="latency0"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="latency1"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="latency2"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="latency3"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="latency4"></div></div>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="latency5"></div></div>
+
+      <h1 class="pure-u-1-1">Distributed</h1>
+      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="dist"></div></div>
     </div>
-    <div>
-      <h1>TPC-C</h1>
-      <div id="eval-hotspot-tpcc1"></div>
-      <div id="eval-hotspot-tpcc2"></div>
-      <div id="eval-hotspot-tpcc3"></div>
-      <div id="eval-hotspot-tpcc4"></div>
-      <div id="eval-hotspot-tpcc5"></div>
-    </div>
+
     <script type="text/javascript">
       let q = new URLSearchParams(location.search)
-      let base = {
-          'data': {'url': ''},
-	  'width': 175,
-	  'height': 120,
-	  'layer': [
-	      {
-		  'mark': {
-		      'type': 'errorbar',
-		      'extent': 'ci',
-		      'ticks': true,
-		  },
-		  'encoding': {
-		      'x': {'field': 'cpu', 'type': 'quantitative', 'title': 'Cores', 'axis': {'grid': false}},
-		      'y': {'field': 'throughput', 'type': 'quantitative', 'title': 'Throughput'},
-		      'color': {'field': "symbol", 'type': "nominal", 'title': '', 'sort': ['Baseline',  'Serial Caracal', 'Granola', 'Parallel Caracal']}
-		  }
-	      },
-	      {
-		  'mark': {
-		      'type': 'line',
-		      'point': true,
-		  },
-		  'encoding': {
-		      'x': {'field': 'cpu', 'type': 'quantitative', 'axis': {'values': [0, 8, 16, 24, 32]}},
-		      'y': {'field': 'throughput', 'type': 'quantitative', 'aggregate': 'mean', 'axis': {'tickCount': 6, 'format': '~s'}, 'scale': {'domain': []}},
-		      'color': {'field': "symbol", 'type': "nominal", 'title': '', 'sort': [ 'Baseline', 'Serial Caracal', 'Granola', 'Parallel Caracal']},
-		  }
-	      },
-	  ],
-	  'config': {
-	      'range': {'category': []},
-	      'view': {'stroke': 'transparent'},
-	      'legend': {'offset': 2, 'labelOffset': 2, 'columns': 2, 'columnPadding': 2, 'orient': 'top'},
-	  },
-	  'transform': [
-	      {},
-	  ],
-	  'padding': 0,
-      };
+      let caracal_colour = '#ad000c'
+      let msto_colour = '#ffaa69'
+      let osto_colour = '#8fb8eb'
+      let foedus_2pl_colour = '#3665d1'
+      let ermia_colour = '#1e873a'
 
-      const plot = (title, filter, ydomain, selector) => {
-	  let d = base
-	  d['transform'][0] = {'filter': filter}
-	  if (q.has('showTitle'))
-	      d['title'] = title
-	  d['layer'][1]['encoding']['y']['scale']['domain'] = ydomain
-	  d['layer'][1]['encoding']['y']['axis']['values'] = [0, 1, 2, 3, 4, 5].map(x => x * ydomain[1] / 5)
-	  vegaEmbed(selector, d, {'mode': 'vega-lite', 'renderer': 'svg'})
+      class Graph {
+	  constructor(url, title, colours, attributes, ydomain) {
+	      this.labelSort = ['Caracal', 'MSTO', 'OSTO', 'Foedus(2PL)', 'Ermia', 'BatchAppend', 'NoBatchAppend NoSplitting', 'TPC-C', 'TPC-C Single Warehouse']
+	      this.obj = {
+		  '$schema': 'https://vega.github.io/schema/vega-lite/v4.json',
+		  'data': {'url': ''},
+		  'width': 175,
+		  'height': 120,
+		  'layer': [
+		      {
+			  'mark': {
+			      'type': 'errorbar',
+			      'extent': 'ci',
+			      'ticks': {
+				  'width': 12,
+			      },
+			  },
+			  'encoding': {
+			      'x': {'field': 'cpu', 'type': 'quantitative', 'title': 'Cores', 'axis': {'grid': false}},
+			      'y': {'field': 'throughput', 'type': 'quantitative', 'title': 'Throughput'},
+			      'color': {'field': "symbol", 'type': "nominal", 'title': '', 'sort': this.labelSort},
+			  }
+		      },
+		      {
+			  'mark': {
+			      'type': 'line',
+			      'point': true,
+			  },
+			  'encoding': {
+			      'x': {'field': 'cpu', 'type': 'quantitative', 'axis': {'values': [0, 8, 16, 24, 32]}},
+			      'y': {'field': 'throughput', 'type': 'quantitative', 'aggregate': 'mean', 'axis': {'tickCount': 6, 'format': '.2s'}, 'scale': {'domain': []}},
+			      'color': {'field': 'symbol', 'type': "nominal", 'title': '', 'sort': this.labelSort},
+			      'strokeDash': {'condition': {'test': {'field': 'symbol', 'oneOf': ['OSTO', 'MSTO']}, 'value': [4, 4]}},
+			  }
+		      },
+		  ],
+		  'config': {
+		      'range': {'category': []},
+		      'view': {'stroke': 'transparent'},
+		      'legend': {'offset': 2, 'labelOffset': 2, 'columns': 2, 'columnPadding': 2, 'orient': 'top'},
+		  },
+		  'transform': [
+		      {},
+		  ],
+		  'padding': 0,
+	      }
+
+	      let overlay = {
+		  'data': {'url': url},
+		  'config': {'range': {'category': colours}},
+		  'transform': [],
+	      }
+	      if (attributes)
+		  overlay['transform'] = [{'filter': {'field': 'attribute', 'oneOf': attributes}}]
+	      if (ydomain)
+		  overlay['layer'] = [{}, {'encoding': {'y': {'scale': {'domain': ydomain}, 'axis': {'values': _.range(6).map(x => x * ydomain[1] / 5)}}}}]
+	      if (q.has('showTitle'))
+		  overlay['title'] = title
+	      _.mergeWith(this.obj, overlay)
+	  }
+
+	  transformFilter(filter) {
+	      this.obj['transform'].push({
+		  'filter': filter
+	      })
+	      return this
+	  }
+	  transformCalc(expr, field) {
+	      this.obj['transform'].push({
+		  'calculate': expr,
+		  'as': field,
+	      })
+	      return this
+	  }
+
+	  plot(selector) {
+	      vegaEmbed(selector, this.obj, {'mode': 'vega-lite', 'renderer': 'svg'})
+	  }
       }
 
-      base['data']['url'] = 'ycsb.json'
+      let ycsb_colours = [caracal_colour, msto_colour, osto_colour, foedus_2pl_colour, ermia_colour]
+      let ycsb_baselines = ['dep_cicada', 'nodep_caracal-pieces', 'dep_silo', 'dep_foedus-2pl', 'dep_ermia']
 
-      base['config']['range']['category'] = ['#640912', '#1f77b4']
-      
-      plot('LowContention NoSkew',
-	   'datum.attribute == "cont0_noskew_nodep_locking" || datum.attribute == "cont0_noskew_nodep_granola"',
-	   [0, 1500000],
-	   '#intro-v0')
+      new Graph('ycsb.json', 'LowContention NoSkew',
+		ycsb_colours,
+		ycsb_baselines.map(x => 'cont0_noskew_' + x),
+		[0, 4000000]).plot('#ycsb00')
 
-      plot('LowContention Skew',
-	   'datum.attribute == "cont0_skew90_nodep_locking" || datum.attribute == "cont0_skew90_nodep_granola"',
-	   [0, 1500000],
-	   '#intro-v1')
+      new Graph('ycsb.json', 'LowContention Skew 0.3',
+		ycsb_colours,
+		ycsb_baselines.map(x => 'cont0_skew30_' + x),
+		[0, 4000000]).plot('#ycsb30')
 
-      plot('Contention NoSkew',
-  	   'datum.attribute == "cont7_noskew_nodep_locking" || datum.attribute == "cont7_noskew_nodep_granola"',
-	   [0, 1500000],
-	   '#intro-v2')
+      new Graph('ycsb.json', 'LowContention Skew 0.6',
+		ycsb_colours,
+		ycsb_baselines.map(x => 'cont0_skew60_' + x),
+		[0, 4000000]).plot('#ycsb60')
 
-      plot('Contention Skew',
-	   'datum.attribute == "cont7_skew90_nodep_locking" || datum.attribute == "cont7_skew90_nodep_granola"',
-	   [0, 1500000],
-	   '#intro-v3')
+      new Graph('ycsb.json', 'LowContention Skew 0.9',
+		ycsb_colours,
+		ycsb_baselines.map(x => 'cont0_skew90_' + x),
+		[0, 4000000]).plot('#ycsb90')
 
-      base['config']['range']['category'] = ['#1f77b4', '#f6a7a8', '#640912', '#f54842',]
-      plot('LowContention NoSkew',
-	   'datum.attribute == "cont0_noskew_nodep_locking" || datum.attribute == "cont0_noskew_nodep_caracal-pieces" || datum.attribute == "cont0_noskew_nodep_caracal-serial" || datum.attribute == "cont0_noskew_nodep_granola"',
-	   [0, 1500000],
-	   '#nodep-v0')
+      new Graph('ycsb.json', 'LowContention Skew 1.2',
+		ycsb_colours,
+		ycsb_baselines.map(x => 'cont0_skew120_' + x),
+		[0, 4000000]).plot('#ycsb120')
 
-      plot('LowContention Skew',
-	   'datum.attribute == "cont0_skew90_nodep_locking" || datum.attribute == "cont0_skew90_nodep_caracal-pieces" || datum.attribute == "cont0_skew90_nodep_caracal-serial" || datum.attribute == "cont0_skew90_nodep_granola"',
-	   [0, 1500000],
-	   '#nodep-v1')
+      new Graph('ycsb.json', 'High Contention NoSkew',
+		ycsb_colours,
+		ycsb_baselines.map(x => 'cont7_noskew_' + x),
+		[0, 750000]).plot('#ycsbc00')
 
-      plot('High Contention NoSkew',
-	   'datum.attribute == "cont7_noskew_nodep_locking" || datum.attribute == "cont7_noskew_nodep_caracal-pieces" || datum.attribute == "cont7_noskew_nodep_caracal-serial" || datum.attribute == "cont7_noskew_nodep_granola"',
-	   [0, 1500000],
-	   '#nodep-v2')
+      new Graph('ycsb.json', 'High Contention Skew 0.9',
+		ycsb_colours,
+		ycsb_baselines.map(x => 'cont7_skew90_' + x),
+		[0, 750000]).plot('#ycsbc90')
 
-      plot('High Contention Skew',
-	   'datum.attribute == "cont7_skew90_nodep_locking" || datum.attribute == "cont7_skew90_nodep_caracal-pieces" || datum.attribute == "cont7_skew90_nodep_caracal-serial" || datum.attribute == "cont7_skew90_nodep_granola"',
-	   [0, 1500000],
-	   '#nodep-v3')
+      let tpcc_colours = [caracal_colour, msto_colour, osto_colour, foedus_2pl_colour, ermia_colour]
+      let tpcc_baselines = ['cicada', 'caracal', 'silo', 'foedus-2pl', 'ermia']
 
+      new Graph('single-tpcc.json', 'Default TPC-C',
+		tpcc_colours,
+		tpcc_baselines.map(x => 'singlenode-tpcc_' + x),
+		[0, 2500000]).plot('#tpcc0')
+      new Graph('single-tpcc.json', 'Single Warehouse TPC-C',
+		tpcc_colours,
+		tpcc_baselines.map(x => 'singlewarehouse-tpcc_' + x),
+		[0, 500000]).plot('#tpcc1')
 
-      base['config']['range']['category'] = ['#640912', '#f54842']
-      plot('Low Contention NoSkew',
-	   'datum.attribute == "cont0_noskew_dep_caracal-pieces" || datum.attribute == "cont0_noskew_dep_granola"',
-	   [0, 1500000],
-	   '#dep-v0')
-/*
-      plot('Low Contention Skew',
-	   'datum.attribute == "cont0_skew90_dep_caracal-pieces" || datum.attribute == "cont0_skew90_dep_granola"',
-	   [0, 2000000],
-	   '#dep-v1')
-*/
-      plot('High Contention NoSkew',
-	   'datum.attribute == "cont7_noskew_dep_caracal-pieces" || datum.attribute == "cont7_noskew_dep_granola"',
-	   [0, 1500000],
-	   '#dep-v2')
-/*
-      plot('High Contention Skew',
-	   'datum.attribute == "cont7_skew90_dep_caracal-pieces" || datum.attribute == "cont7_skew90_dep_granola"',
-	   [0, 800000],
-	   '#dep-v3')
-*/
-      base['data']['url'] = 'hotspot-tpcc.json'
-      base['config']['range']['category'] = ['#640912', '#f6a7a8']
+      let testopt_colours = ['#910a00', '#d6d313', '#f29513', '#333333']
+      new Graph('test-opt.json', 'YCSB + Skew',
+		testopt_colours,
+		['cont0_skew90_nodep_caracal-pieces_O0', 'cont0_skew90_nodep_caracal-pieces_O1', 'cont0_skew90_nodep_caracal-pieces', 'cont0_skew90_nodep_caracal-pieces_O9'],
+		[0, 2000000]).plot('#testopt0')
 
-      plot('LowSkew TPC-C',
-	   'datum.attribute == "hotspot000_caracal" || datum.attribute == "hotspot000_granola"',
-	   [0, 1200000],
-	   '#eval-hotspot-tpcc1')
+      new Graph('test-opt.json', 'YCSB + Contention',
+		testopt_colours,
+		['cont7_noskew_nodep_caracal-pieces_O0', 'cont7_noskew_nodep_caracal-pieces_O1', 'cont7_noskew_nodep_caracal-pieces', 'cont7_noskew_nodep_caracal-pieces_O9'],
+		[0, 750000]).plot('#testopt1')
 
-      plot('Skew (2x) TPC-C',
-	   'datum.attribute == "hotspot200_caracal" || datum.attribute == "hotspot200_granola"',
-	   [0, 1200000],
-	   '#eval-hotspot-tpcc2')
+      new Graph('test-opt.json', 'YCSB + Skew + Contention',
+		testopt_colours,
+		['cont7_skew90_nodep_caracal-pieces_O0', 'cont7_skew90_nodep_caracal-pieces_O1', 'cont7_skew90_nodep_caracal-pieces', 'cont7_skew90_nodep_caracal-pieces_O9'],
+		[0, 750000]).plot('#testopt2')
 
-      plot('Skew (3x) TPC-C',
-	   'datum.attribute == "hotspot300_caracal" || datum.attribute == "hotspot300_granola"',
-	   [0, 1200000],
-	   '#eval-hotspot-tpcc3')
+      new Graph('test-opt.json', 'TPC-C Single Warehouse',
+		testopt_colours,
+		['singlewarehouse-tpcc_caracal_O0', 'singlewarehouse-tpcc_caracal_O1', 'singlewarehouse-tpcc_caracal', 'singlewarehouse-tpcc_caracal_O9'],
+		[0, 500000]).plot('#testopt3')
 
+      class ThresholdGraph extends Graph {
+	  constructor(url, colours, ydomain, xdomain) {
+	      super(url, 'On Demand Splitting Threshold', colours, [], ydomain)
+	      let extra = {
+		  'encoding': {
+		      'x': {
+			  'field': 'threshold',
+			  'title': 'Threshold',
+			  'axis': {
+			      'values': xdomain,
+			      'labelExpr': 'if (datum.value > 512, datum.value / 1024 + "K", datum.value)'
+			  },
+			  'scale': {'type': 'log'},
+		      },
+		      'color': {'field': 'workload'},
+		  }
+	      }
 
-      plot('Skew (4x) TPC-C',
-	   'datum.attribute == "hotspot400_caracal" || datum.attribute == "hotspot400_granola"',
-	   [0, 1200000],
-	   '#eval-hotspot-tpcc4')
+	      for (let i = 0; i < 2; i++)
+		  _.merge(this.obj['layer'][i], extra)
+	      this.obj['transform'] = []
+	  }
+      }
 
+      const thr_ticks = _.range(0, 7).map(x => Math.pow(8, x))
+      const alt_graph_colours = ['#910a00', '#0e6e25', '#3277c7']
 
-      base['data']['url'] = 'ycsb.json'
-      for (let i = 0; i < 2; i++)
-	  base['layer'][i]['encoding']['x']['field'] = 'threshold'
+      new ThresholdGraph(
+	  'ycsb-tuning.json',
+	  alt_graph_colours,
+	  [0, 2000000], thr_ticks)
+    .transformFilter('indexof(datum.attribute, "cont0_skew90") == 0')
+    .plot('#threshold0')
 
-      for (let i = 0; i < 2; i++)
-	  base['layer'][i]['encoding']['x']['title'] = 'Threshold (%)'
+      new ThresholdGraph(
+	  'ycsb-tuning.json',
+	  alt_graph_colours,
+	  [0, 750000], thr_ticks)
+    .transformFilter('indexof(datum.attribute, "cont7_noskew") == 0')
+    .plot('#threshold1')
 
-      base['layer'][1]['encoding']['x']['axis'] = {}
+      new ThresholdGraph(
+	  'ycsb-tuning.json',
+	  alt_graph_colours,
+	  [0, 750000], thr_ticks)
+    .transformFilter('indexof(datum.attribute, "cont7_skew90") == 0')
+    .plot('#threshold2')
 
-      base['config']['range']['category'] = ['#f54842']
+      new ThresholdGraph(
+	  'tpcc-tuning.json',
+	  alt_graph_colours,
+	  [0, 500000], thr_ticks).plot('#threshold3')
 
-      plot('On Demand Splitting Threshold',
-	   'datum.threshold && test(/noskew_dep_caracal-pieces/, datum.attribute)',
-	   [0, 1500000],
-	   '#tune-v8')
+      class LatencyGraph extends Graph {
+	  constructor(url, colours, ydomain, xdomain) {
+	      super(url, 'Latency', colours, [], ydomain)
+	      let extra = {
+		  'encoding': {
+		      'x': {
+			  'field': 'latency',
+			  'title': 'Latency (ms)',
+			  'axis': {'values': xdomain},
+		      },
+		      'color': {'field': 'workload'},
+		  }
+	      }
+	      for (let i = 0; i < 2; i++)
+		  _.merge(this.obj['layer'][i], extra)
+	      this.obj['transform'] = []
+	  }
+      }
 
-      plot('On Demand Splitting Threshold',
-	   'datum.threshold && test(/skew90_dep_caracal-pieces/, datum.attribute)',
-	   [0, 1500000],
-	   '#tune-v9')
+      const lat_ticks = _.range(0, 250, 10)
+      new LatencyGraph('epoch-size.json',
+		       alt_graph_colours,
+		       [0, 2000000], lat_ticks)
+    .transformFilter('indexof(datum.attribute, "cont0_") != -1')
+    .plot('#latency0')
 
-      base['config']['range']['category'] = ['#f6a7a8']
+      new LatencyGraph('epoch-size.json',
+		       alt_graph_colours,
+		       [0, 750000], lat_ticks)
+    .transformFilter('indexof(datum.attribute, "cont7_") != -1')
+    .plot('#latency1')
 
-      plot('Core Scaling Threshold',
-	   'datum.threshold && test(/noskew_dep_caracal-serial/, datum.attribute)',
-	   [0, 1500000],
-	   '#tune-v10')
+      new LatencyGraph('epoch-size.json',
+		       alt_graph_colours,
+		       [0, 1000000], lat_ticks)
+    .transformFilter('indexof(datum.attribute, "tpcc_caracal") != -1')
+    .plot('#latency2')
 
-      plot('Core Scaling Threshold',
-	   'datum.threshold && test(/skew90_dep_caracal-serial/, datum.attribute)',
-	   [0, 1500000],
-	   '#tune-v11')
+      class HistGraph {
+	  constructor(url, title, split) {
+	      this.obj = {
+		  "$schema": "https://vega.github.io/schema/vega-lite/v4.json",
+		  'width': 175,
+		  'height': 120,
+		  "data": {},
+		  "layer": [{
+		      "mark": {
+			  "type": "bar",
+			  "color": "#3277c7"
+		      },
+		      "transform": []
+		  }, {
+		      "mark": {
+			  "type": "bar",
+			  "color": "red"
+		      },
+		      "transform": []
+		  }],
+		  "encoding": {
+		      "x": {
+			  "field": "bin_start",
+			  "bin": {
+			      "binned": true
+			  },
+			  "scale": {"type": "log"},
+			  "type": "quantitative",
+			  "axis": {
+			      "values": _.range(0, 18).map(x => Math.pow(2, x)),
+			      "labelExpr": "if(datum.value > 512, datum.value / 1024 + 'K', datum.value)",
+			      "title": "Number of Versions"
+			  }
+		      },
+		      "x2": {"field": "bin_end"},
+		      "y": {
+			  "field": "count",
+			  "scale": {"type": "symlog"},
+			  "type": "quantitative",
+			  "axis": {
+			      "values": _.range(0, 18).map(x => Math.pow(16, x)),
+			      "title": "Count/100K Txn"
+			  }
+		      },
+		  }
+	      }
+	      let overlay = {
+		  'data': {'url': url},
+	      }
+	      if (q.has('showTitle'))
+		  overlay['title'] = title
+	      _.mergeWith(this.obj, overlay)
 
-      for (let i = 0; i < 2; i++)
-	  base['layer'][i]['encoding']['x']['field'] = 'latency'
+	      if (split) {
+		  this.obj['layer'][0]["transform"][0] = {"filter": `datum.bin_start < ${split}`}
+		  this.obj['layer'][1]["transform"][0] = {"filter": `datum.bin_start >= ${split}`}
+	      } else {
+		  this.obj['layer'].pop()
+	      }
+	  }
+	  plot(selector) {
+	      vegaEmbed(selector, this.obj, {'mode': 'vega-lite', 'renderer': 'svg'})
+	  }
+      }
 
-      for (let i = 0; i < 2; i++)
-	  base['layer'][i]['encoding']['x']['title'] = 'Latency (ms)'
-      base['config']['range']['category'] = ['#57a0ff', '#f54842']
-      base['transform'][1] = {calculate: 'test(/skew/, datum.attribute) ? (test(/skew90/, datum.attribute) ? "YCSB Skew" : "YCSB Uniform") : "TPC-C"', as: 'symbol'}
-      plot('Epoch YCSB',
-	   'datum.latency',
-	   [0, 1500000],
-	   '#epoch-1')
+      new HistGraph('ycsb-cont0-skew90-hist.csv', 'YCSB+Skew').plot('#hist0')
+      new HistGraph('ycsb-cont7-noskew-hist.csv', 'YCSB+Contention', 1024).plot('#hist1')
+      new HistGraph('ycsb-cont7-skew90-hist.csv', 'YCSB+Contention+Skew', 1024).plot('#hist2')
+      new HistGraph('tpcc-single-hist.csv', 'TPC-C Single Warehouse Versions', 8).plot('#hist3')
 
-      base['data']['url'] = 'hotspot-tpcc.json'
-      
-      plot('Epoch TPC-C',
-	   'datum.latency',
-	   [0, 1200000],
-	   '#epoch-2')
+      class MemGraph extends Graph {
+	  constructor(url, title, colours) {
+	      super(url, title, colours)
+	      this.obj['layer'].shift()
+	      this.obj['layer'][0] = {
+		  'mark': {
+		      'type': 'line',
+		      'point': false,
+		  },
+		  'encoding': {
+		      'x': {'field': 't', 'title': 'Epochs', 'type': 'quantitative', 'axis': {
+			  'values': _.range(0, 200, 20),
+		      }},
+		      'y': {
+			  'field': 'mem', 'type': 'quantitative', 'title': 'Memory Usage',
+			  'axis': {
+			      'labelExpr': 'format(datum.value / 1024 / 1024 / 1024, ",.2f") + "G"',
+			      'values': _.range(1, 5).map(x => x * 8 * 1024 * 1024 * 1024),
+			  },'scale': {
+			      'domain': [0, 32 * 1024 * 1024 * 1024],
+			  }},
+		      'color': {'field': 'gclabel', 'type': 'nominal', 'title': ''},
+		  },
+		  'transform': [{
+			  'calculate': 'if(datum.gc == -1, "No Major GC", if(datum.gc == 8, "Minor+Major GC", "Optimal"))',
+			  'as': 'gclabel'
+		      },],
+	      }
+	  }
+      }
+
+      new MemGraph('ycsb-cont0-noskew-mem.csv', 'Memory for YCSB', alt_graph_colours).plot('#mem0')
+      new MemGraph('ycsb-cont0-skew90-mem.csv', 'Memory for YCSB+Skew', alt_graph_colours).plot('#mem1')
+      new MemGraph('ycsb-cont7-noskew-mem.csv', 'Memory for YCSB+Contention', alt_graph_colours).plot('#mem2')
+      new MemGraph('ycsb-cont7-skew90-mem.csv', 'Memory for YCSB+Contention+Skew', alt_graph_colours).plot('#mem3')
+
+      new MemGraph('tpcc-32w-mem.csv', 'Memory for TPC-C', alt_graph_colours).plot('#mem4')
+      new MemGraph('tpcc-1w-mem.csv', 'Memory for TPC-C Single Warehouse', alt_graph_colours).plot('#mem5')
+
+      class DistributedGraph extends Graph {
+	  constructor(url, colours, ydomain, xdomain) {
+	      super(url, 'Distributed TPC-C', colours, [], ydomain)
+	      let extra = {
+		  'encoding': {
+		      'x': {
+			  'field': 'node',
+			  'title': 'Number of Machines',
+			  'axis': {'values': xdomain},
+		      },
+		      'color': {'field': 'sys'},
+		  }
+	      }
+	      for (let i = 0; i < 2; i++)
+		  _.merge(this.obj['layer'][i], extra)
+	      this.obj['transform'] = []
+	  }
+      }
+
+      new DistributedGraph('dist.csv', [caracal_colour, msto_colour, osto_colour], [0, 4000000], _.range(1, 9))
+    .plot('#dist')
 
     </script>
   </body>

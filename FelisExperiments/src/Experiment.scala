@@ -30,6 +30,7 @@ trait Experiment {
 
   // Helper function for adding a new process
   def spawnProcess(args: Seq[String]) = {
+    println(s"Spawn Process: ${args.mkString(" ")}")
     processes += os.proc(args).spawn(cwd = os.Path.expandUser(Experiment.WorkingDir), stderr = os.Inherit, stdout = os.Inherit)
   }
 
@@ -77,7 +78,10 @@ trait Experiment {
       try {
         val r = requests.post(
           "http://%s/broadcast/".format(Experiment.ControllerHttp),
-          data = "{\"type\": \"get_status\"}")
+          data = "{\"type\": \"get_status\"}",
+          readTimeout = 300000,
+          connectTimeout = 300000)
+
         if (r.statusCode != 200) die()
         val status = ujson.read(r.text).arr
         ready = true
@@ -108,8 +112,10 @@ trait Experiment {
     waitToFinish()
     if (!isResultValid())
       die()
+    clean()
   }
   def isResultValid() = valid
+  def clean(): Unit = {}
 
   def loadResults(): ujson.Arr = {
     val result = ujson.Arr()
