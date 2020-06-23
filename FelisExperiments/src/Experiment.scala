@@ -45,9 +45,12 @@ trait Experiment {
   }
   protected def waitToFinish() = {
     for (p <- processes) {
-      p.waitFor()
-      if (p.exitCode() != 0) {
+      if (p.waitFor(5 * 60 * 1000) || p.exitCode() != 0) {
         valid = false
+      }
+      if (p.isAlive()) {
+        println("Process timed out. Killing forcibly.")
+        p.destroyForcibly()
       }
       p.close()
     }

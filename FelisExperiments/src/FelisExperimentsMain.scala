@@ -199,6 +199,13 @@ class YcsbOSTOExperiment(implicit override val config: YcsbExperimentConfig) ext
   override def plotSymbol: String = "OSTO"
 }
 
+class YcsbTSTOExperiment(implicit override val config: YcsbExperimentConfig) extends BaseYcsbSTOExperiment {
+  addAttribute("tsto")
+
+  override def cc: String = "tictoc"
+  override def plotSymbol: String = "TSTO"
+}
+
 // Baselines
 class YcsbGranolaExperiment(implicit val config: YcsbExperimentConfig) extends BaseYcsbExperiment {
   addAttribute("granola")
@@ -236,9 +243,6 @@ trait CaracalTuningTrait extends Experiment {
     }
   }
 
-  /**
-    *  @param totUpdates in K
-    */
   def extraCmdArguments(tuningConfig: CaracalTuningConfig, defaultSplittingThresold: Int) = {
     if (tuningConfig.optLevel >= 2) { // Default
       // Default to 5
@@ -247,7 +251,7 @@ trait CaracalTuningTrait extends Experiment {
         else tuningConfig.splittingThreshold
 
       val extraArgs = ArrayBuffer[String](
-        "-XVHandleBatchAppend", "-XLocalityManagement",
+        "-XVHandleBatchAppend",
         s"-XOnDemandSplitting${thresholdInVersions}")
 
       if (tuningConfig.optLevel == 9) {
@@ -256,7 +260,7 @@ trait CaracalTuningTrait extends Experiment {
 
       extraArgs.toArray
     } else if (tuningConfig.optLevel == 1) {
-      Array("-XVHandleBatchAppend", "-XLocalityManagement")
+      Array("-XVHandleBatchAppend")
     } else if (tuningConfig.optLevel == 0) {
       Array[String]()
     } else {
@@ -382,6 +386,12 @@ class TpccOSTOExperiment(implicit override val config: TpccExperimentConfig) ext
   addAttribute("osto")
   override def cc = "default"
   override def plotSymbol = "OSTO"
+}
+
+class TpccTSTOExperiment(implicit override val config: TpccExperimentConfig) extends BaseTpccSTOExperiment {
+  addAttribute("tsto")
+  override def cc = "tictoc"
+  override def plotSymbol = "TSTO"
 }
 
 abstract class BaseTpccFoedusExperiment(implicit override val config: TpccExperimentConfig) extends BaseTpccExperiment {
@@ -516,14 +526,14 @@ object ExperimentsMain extends App {
     def setupExperiments(cfg: YcsbExperimentConfig) = {
       implicit val config = cfg
 
-      runs.append(new YcsbErmiaExperiment())
+      // runs.append(new YcsbErmiaExperiment())
       // runs.append(new YcsbFoedus2PLExperiment())
       // runs.append(new YcsbCaracalPieceExperiment())
-      // runs.append(new YcsbCicadaExperiment())
-      // runs.append(new YcsbSiloExperiment())
+      // runs.append(new YcsbMSTOExperiment())
+      // runs.append(new YcsbOSTOExperiment())
+      runs.append(new YcsbTSTOExperiment())
 
       // Deprecated:
-      // runs.append(new YcsbLockingExperiment())
       // runs.append(new YcsbCaracalSerialExperiment())
       // runs.append(new YcsbFoedusExperiment())
       // runs.append(new YcsbFoedusOCCExperiment())
@@ -613,10 +623,11 @@ object ExperimentsMain extends App {
       for (singleWarehouse <- Seq(false, true)) {
         implicit val config = new TpccExperimentConfig(cpu, cpu * 2, 1, -1, singleWarehouse)
         // runs.append(new TpccCaracalExperiment())
-        // runs.append(new TpccSiloExperiment())
-        // runs.append(new TpccCicadaExperiment())
+        // runs.append(new TpccOSTOExperiment())
+        // runs.append(new TpccMSTOExperiment())
+        runs.append(new TpccTSTOExperiment())
         // runs.append(new TpccFoedus2PLExperiment())
-        runs.append(new TpccErmiaExperiment())
+        // runs.append(new TpccErmiaExperiment())
 
         // Deprecated:
         // runs.append(new TpccGranolaExperiment())
@@ -654,13 +665,13 @@ object ExperimentsMain extends App {
       a.value ++= new YcsbCaracalPieceExperiment().loadResults().value
       a.value ++= new YcsbMSTOExperiment().loadResults().value
       a.value ++= new YcsbOSTOExperiment().loadResults().value
+      a.value ++= new YcsbTSTOExperiment().loadResults().value
       a.value ++= new YcsbErmiaExperiment().loadResults().value
 
       // a.value ++= new YcsbGranolaExperiment().loadResults().value
       // a.value ++= new YcsbFoedusExperiment().loadResults().value
       // a.value ++= new YcsbFoedusOCCExperiment().loadResults().value
       // a.value ++= new YcsbCaracalSerialExperiment().loadResults().value
-      // a.value ++= new YcsbLockingExperiment().loadResults().value
     }
 
     for (skewFactor <- Seq(0, 90)) {
@@ -827,6 +838,7 @@ object ExperimentsMain extends App {
         implicit val config = new TpccExperimentConfig(cpu, cpu * 2, 1, -1, singleWarehouse)
         a.value ++= new TpccCaracalExperiment().loadResults().value
         a.value ++= new TpccOSTOExperiment().loadResults().value
+        a.value ++= new TpccTSTOExperiment().loadResults().value
         a.value ++= new TpccMSTOExperiment().loadResults().value
         a.value ++= new TpccFoedus2PLExperiment().loadResults().value
         a.value ++= new TpccErmiaExperiment().loadResults().value
@@ -850,7 +862,6 @@ object ExperimentsMain extends App {
     a
   }
 
-
   if (args.length == 0) {
     ExperimentSuite.show()
     PlotSuite.show()
@@ -862,5 +873,4 @@ object ExperimentsMain extends App {
   } else if (args(0).startsWith("plot")) {
     PlotSuite.invoke(args(0).substring(4))
   }
-
 }

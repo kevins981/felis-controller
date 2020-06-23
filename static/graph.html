@@ -122,13 +122,14 @@
       let q = new URLSearchParams(location.search)
       let caracal_colour = '#ad000c'
       let msto_colour = '#ffaa69'
+      let tsto_colour = '#d899ff'
       let osto_colour = '#8fb8eb'
       let foedus_2pl_colour = '#3665d1'
       let ermia_colour = '#1e873a'
 
       class Graph {
 	  constructor(url, title, colours, attributes, ydomain) {
-	      this.labelSort = ['Caracal', 'MSTO', 'OSTO', 'Foedus(2PL)', 'Ermia', 'BatchAppend', 'NoBatchAppend NoSplitting', 'TPC-C', 'TPC-C Single Warehouse']
+	      this.labelSort = ['Caracal', 'MSTO', 'TSTO', 'OSTO', 'Foedus(2PL)', 'Ermia', 'BatchAppend', 'NoBatchAppend NoSplitting', 'TPC-C', 'TPC-C Single Warehouse']
 	      this.obj = {
 		  '$schema': 'https://vega.github.io/schema/vega-lite/v4.json',
 		  'data': {'url': ''},
@@ -158,7 +159,7 @@
 			      'x': {'field': 'cpu', 'type': 'quantitative', 'axis': {'values': [0, 8, 16, 24, 32]}},
 			      'y': {'field': 'throughput', 'type': 'quantitative', 'aggregate': 'mean', 'axis': {'tickCount': 6, 'format': '.2s'}, 'scale': {'domain': []}},
 			      'color': {'field': 'symbol', 'type': "nominal", 'title': '', 'sort': this.labelSort},
-			      'strokeDash': {'condition': {'test': {'field': 'symbol', 'oneOf': ['OSTO', 'MSTO']}, 'value': [4, 4]}},
+			      'strokeDash': {'condition': {'test': {'field': 'symbol', 'oneOf': ['OSTO', 'TSTO', 'MSTO']}, 'value': [4, 4]}},
 			  }
 		      },
 		  ],
@@ -206,8 +207,8 @@
 	  }
       }
 
-      let ycsb_colours = [caracal_colour, msto_colour, osto_colour, foedus_2pl_colour, ermia_colour]
-      let ycsb_baselines = ['dep_cicada', 'nodep_caracal-pieces', 'dep_silo', 'dep_foedus-2pl', 'dep_ermia']
+      let ycsb_colours = [caracal_colour, msto_colour, tsto_colour, osto_colour, foedus_2pl_colour, ermia_colour]
+      let ycsb_baselines = ['dep_msto', 'nodep_caracal-pieces', 'dep_osto', 'dep_tsto', 'dep_foedus-2pl', 'dep_ermia']
 
       new Graph('ycsb.json', 'LowContention NoSkew',
 		ycsb_colours,
@@ -244,8 +245,8 @@
 		ycsb_baselines.map(x => 'cont7_skew90_' + x),
 		[0, 750000]).plot('#ycsbc90')
 
-      let tpcc_colours = [caracal_colour, msto_colour, osto_colour, foedus_2pl_colour, ermia_colour]
-      let tpcc_baselines = ['cicada', 'caracal', 'silo', 'foedus-2pl', 'ermia']
+      let tpcc_colours = [caracal_colour, msto_colour, tsto_colour, osto_colour, foedus_2pl_colour, ermia_colour]
+      let tpcc_baselines = ['msto', 'caracal', 'osto', 'tsto', 'foedus-2pl', 'ermia']
 
       new Graph('single-tpcc.json', 'Default TPC-C',
 		tpcc_colours,

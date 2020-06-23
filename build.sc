@@ -1,7 +1,7 @@
 // -*- mode: scala -*-
 import mill._
 import mill.scalalib._
-import $ivy.`com.lihaoyi::mill-contrib-bloop:$MILL_VERSION`
+import mill.scalajslib._
 
 object FelisController extends ScalaModule {
   def scalaVersion = "2.12.11"
