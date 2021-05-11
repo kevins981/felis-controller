@@ -53,9 +53,12 @@ abstract class BaseYcsbExperiment extends Experiment with YcsbContended with Ycs
 
   override def cmdArguments(): Array[String] = {
     super.cmdArguments() ++
-      (if (contentionLevel == 0) Array("-XYcsbReadOnly8") else Array(s"-XYcsbContentionKey${contentionLevel}")) ++
-      (if (skewFactor > 0) Array("-XYcsbSkewFactor%03d".format(skewFactor)) else Array[String]()) ++
-      (if (dependency) Array("-XYcsbDependency") else Array[String]())
+    (if (contentionLevel == 0) Array("-XYcsbReadOnly8") else Array(s"-XYcsbContentionKey${contentionLevel}")) ++
+    (if (skewFactor > 0) Array("-XYcsbSkewFactor%03d".format(skewFactor)) else Array[String]()) ++
+    (if (dependency) Array("-XYcsbDependency") else Array[String]()) ++
+    (if (epochSize == -1 && contentionLevel != 0)
+      (if (skewFactor == 0) Array[String]("-XEpochSize50000", "-XNrEpoch80") else Array[String]("-XEpochSize25000", "-XNrEpoch160"))
+    else Array[String]())
   }
 }
 
@@ -206,16 +209,6 @@ class YcsbTSTOExperiment(implicit override val config: YcsbExperimentConfig) ext
   override def plotSymbol: String = "TSTO"
 }
 
-// Baselines
-class YcsbGranolaExperiment(implicit val config: YcsbExperimentConfig) extends BaseYcsbExperiment {
-  addAttribute("granola")
-
-  override def plotSymbol = "Granola"
-
-  override def cmdArguments() =
-    super.cmdArguments() ++ Array("-XYcsbEnablePartition", "-XEpochQueueLength100M", "-XEnableGranola")
-}
-
 class YcsbCaracalSerialExperiment(implicit val config: YcsbExperimentConfig, implicit var coreScalingThreshold: Int = -1) extends BaseYcsbExperiment {
   addAttribute("caracal-serial")
   if (coreScalingThreshold == -1) {
@@ -245,14 +238,14 @@ trait CaracalTuningTrait extends Experiment {
 
   def extraCmdArguments(tuningConfig: CaracalTuningConfig, defaultSplittingThresold: Int) = {
     if (tuningConfig.optLevel >= 2) { // Default
-      // Default to 5
       val thresholdInVersions =
         if (tuningConfig.splittingThreshold == -1) defaultSplittingThresold
         else tuningConfig.splittingThreshold
 
-      val extraArgs = ArrayBuffer[String](
-        "-XVHandleBatchAppend",
-        s"-XOnDemandSplitting${thresholdInVersions}")
+      val extraArgs = ArrayBuffer[String]("-XVHandleBatchAppend")
+      if (thresholdInVersions > 0) {
+        extraArgs += s"-XOnDemandSplitting${thresholdInVersions}"
+      }
 
       if (tuningConfig.optLevel == 9) {
         extraArgs += "-XBinpackSplitting"
@@ -281,9 +274,49 @@ class YcsbCaracalPieceExperiment(
   override def plotSymbol = "Caracal"
 
   override def cmdArguments() = {
-    var default: Long = if (contentionLevel == 0) 4096 else 512
-    if (epochSize > 0) default = Math.max(2, default * config.epochSize / 100000)
+    var default: Long = 100000
+    if (contentionLevel != 0) {
+      default = if (skewFactor == 0) 2048 else 16
+    }
+
+    if (epochSize > 0) default = Math.max(2, default * config.epochSize / 50000)
     super.cmdArguments() ++ extraCmdArguments(tuningConfig, default.toInt)
+  }
+}
+
+object PartitionMode extends Enumeration {
+  type PartitionMode = Value
+  val Bohm, PWV, Granola = Value
+}
+
+trait PartitionTuningTrait {
+
+  def extraCmdArguments(mode: PartitionMode.Value): Array[String] = {
+    val extra = mode match {
+      case PartitionMode.Bohm => Array[String]("")
+      case PartitionMode.PWV => Array[String]("-XEnablePartition", "-XEnablePWV")
+      case PartitionMode.Granola => Array[String]("-XEnablePartition", "-XEnableGranola")
+    }
+    Array[String]("-XVHandleLockElision") ++ extra
+  }
+}
+
+class YcsbPartitionExperiment(
+  implicit val config: YcsbExperimentConfig,
+  implicit val mode: PartitionMode.Value = PartitionMode.Bohm)
+    extends BaseYcsbExperiment with PartitionTuningTrait {
+  addAttribute(mode.toString.toLowerCase)
+
+  override def plotSymbol = mode.toString
+
+  override def cmdArguments() = {
+    val base = super.cmdArguments() ++ extraCmdArguments(mode) ++ (
+      if (config.skewFactor == 90) Array[String]("-XEpochQueueLength80M") else Array[String](""))
+
+    if (mode == PartitionMode.PWV && config.skewFactor == 90)
+      base ++ Array[String]("-XPWVGraphAlloc32M")
+    else
+      base
   }
 }
 
@@ -292,7 +325,8 @@ class TpccExperimentConfig(
   val memory: Int,
   val nodes: Int = 1,
   val epochSize: Int = -1,
-  val singleWarehouse: Boolean = false)
+  val singleWarehouse: Boolean = false,
+  val readOnlyDelay: Boolean = false)
 {}
 
 abstract class BaseTpccExperiment(implicit val config: TpccExperimentConfig) extends Experiment {
@@ -303,6 +337,9 @@ abstract class BaseTpccExperiment(implicit val config: TpccExperimentConfig) ext
   } else {
     addAttribute("distributed-tpcc")
   }
+
+  if (config.readOnlyDelay)
+    addAttribute("readonly-delay")
   
   def nodes = config.nodes
   def warehouses = if (config.singleWarehouse) 1 else config.cpu * config.nodes
@@ -318,8 +355,13 @@ abstract class BaseTpccExperiment(implicit val config: TpccExperimentConfig) ext
 
     for (i <- 1 to nodes) {
       val nodeName = s"host${i}"
-      val args = Array(Experiment.Binary, "-c", Experiment.ControllerHost, "-n", nodeName, "-w", "tpcc",
-        s"-XMaxNodeLimit${nodes}", s"-XTpccWarehouses${warehouses}") ++ cmdArguments()
+      val args = Array(Experiment.Binary, "-c", Experiment.ControllerHost, "-n", nodeName, "-w", "tpcc", s"-XMaxNodeLimit${nodes}", s"-XTpccWarehouses${warehouses}") ++
+      (if (config.readOnlyDelay) Array("-XTpccReadOnlyDelayQuery") else Array("")) ++
+      (if (epochSize == -1)
+        (if (warehouses == 1) Array("-XEpochSize30000", "-XNrEpoch120") else Array("-XEpochSize50000", "-XNrEpoch80"))
+      else
+        Array[String]()) ++
+      cmdArguments()
 
       launchProcess(nodeName, args)
     }
@@ -340,7 +382,8 @@ abstract class SingleNodeTpccExperiment(implicit override val config: TpccExperi
 
 class TpccCaracalExperiment(
   implicit override val config: TpccExperimentConfig,
-  implicit val tuningConfig: CaracalTuningConfig = new CaracalTuningConfig())
+  implicit val tuningConfig: CaracalTuningConfig = new CaracalTuningConfig(),
+  )
     extends SingleNodeTpccExperiment with CaracalTuningTrait {
 
   addAttribute("caracal")
@@ -348,18 +391,24 @@ class TpccCaracalExperiment(
 
   override def plotSymbol = "Caracal"
   override def cmdArguments() = {
-    var default: Long = (if (warehouses == 1) 4 else 1000000)
-    if (epochSize > 0) default = Math.max(2, default * epochSize / 100000)
+    var default: Long = 0
+    if (warehouses == 1) default = 3
+    else default = 1000000
+
+    if (epochSize > 0) default = Math.max(2, default * epochSize / 30000) // Int will overflow here. lol.
+
     super.cmdArguments() ++ extraCmdArguments(tuningConfig, default.toInt)
   }
 }
 
-class TpccGranolaExperiment(implicit override val config: TpccExperimentConfig) extends SingleNodeTpccExperiment {
-  addAttribute("granola")
+class TpccPartitionExperiment(
+  implicit override val config: TpccExperimentConfig,
+  implicit val mode: PartitionMode.Value) extends SingleNodeTpccExperiment with PartitionTuningTrait {
+  addAttribute(mode.toString.toLowerCase)
 
-  override def plotSymbol = "Granola"
+  override def plotSymbol = mode.toString
   override def cmdArguments() =
-    super.cmdArguments() ++ Array("-XEnableGranola")
+    super.cmdArguments() ++ extraCmdArguments(mode)
 }
 
 abstract class BaseTpccSTOExperiment(implicit override val config: TpccExperimentConfig) extends BaseTpccExperiment {
@@ -522,39 +571,42 @@ class MultiNodeTpccExperiment(override val nodes: Int) extends BaseTpccExperimen
 
 object ExperimentsMain extends App {
 
-  ExperimentSuite("Ycsb", "Ycsb on Foedus/Silo/Caracal/Caracal/Ermia") { runs: ArrayBuffer[Experiment] =>
+  ExperimentSuite("Ycsb", "Ycsb on Foedus/Silo/Caracal/Ermia") { runs: ArrayBuffer[Experiment] =>
     def setupExperiments(cfg: YcsbExperimentConfig) = {
       implicit val config = cfg
 
       // runs.append(new YcsbErmiaExperiment())
       // runs.append(new YcsbFoedus2PLExperiment())
-      // runs.append(new YcsbCaracalPieceExperiment())
+      runs.append(new YcsbCaracalPieceExperiment())
       // runs.append(new YcsbMSTOExperiment())
       // runs.append(new YcsbOSTOExperiment())
-      runs.append(new YcsbTSTOExperiment())
-
+      // runs.append(new YcsbTSTOExperiment())
+      Seq(PartitionMode.PWV, PartitionMode.Granola, PartitionMode.Bohm) foreach {
+        implicit mode =>
+        runs.append(new YcsbPartitionExperiment())
+      }
       // Deprecated:
       // runs.append(new YcsbCaracalSerialExperiment())
       // runs.append(new YcsbFoedusExperiment())
       // runs.append(new YcsbFoedusOCCExperiment())
-      // runs.append(new YcsbGranolaExperiment())
     }
 
     for (cpu <- Seq(8, 16, 24, 32)) {
       for (contend <- Seq(false, true)) {
         for (skewFactor <- Seq(0, 90)) {
-          val mem = Math.max(cpu * 2, 64)
+          val mem = 32
           for (cfg <- Seq(new YcsbExperimentConfig(cpu, mem, skewFactor, if (contend) 7 else 0))) {
             setupExperiments(cfg)
           }
         }
       }
-      for (skewFactor <- Seq(30, 60, 120)) {
-        val mem = Math.max(cpu * 2, 32)
-        for (cfg <- Seq(new YcsbExperimentConfig(cpu, mem, skewFactor, 0))) {
-          setupExperiments(cfg)
-        }
-      }
+
+      // for (skewFactor <- Seq(30, 60, 120)) {
+      //   val mem = Math.max(cpu * 2, 32)
+      //   for (cfg <- Seq(new YcsbExperimentConfig(cpu, mem, skewFactor, 0))) {
+      //     setupExperiments(cfg)
+      //   }
+      // }
     }
   }
 
@@ -562,7 +614,7 @@ object ExperimentsMain extends App {
     val runs = ArrayBuffer[BaseYcsbExperiment]()
 
     for (cfg <- Seq(
-      new YcsbExperimentConfig(cpu, 32, 90, 0, false),
+      // new YcsbExperimentConfig(cpu, 32, 90, 0, false),
       new YcsbExperimentConfig(cpu, 32, 0, 7, false),
       new YcsbExperimentConfig(cpu, 32, 90, 7, false))) {
 
@@ -573,19 +625,24 @@ object ExperimentsMain extends App {
     runs
   }
 
-  def tuningTpccExperiments(cpu: Int = 32)(implicit tuningConfig: CaracalTuningConfig) = {
+  def tuningTpccExperiments(cpu: Int = 32, reuse: Boolean = false)(implicit tuningConfig: CaracalTuningConfig) = {
     val runs = ArrayBuffer[BaseTpccExperiment]()
 
-    {
+    if (!reuse || tuningConfig.optLevel != 2) { // reuse the number as much as possible
       implicit val config = new TpccExperimentConfig(cpu, 16, 1, -1, true)
+      runs.append(new TpccCaracalExperiment())
+    }
+
+    {
+      implicit val config = new TpccExperimentConfig(cpu, 16, 1, -1, true, true)
       runs.append(new TpccCaracalExperiment())
     }
 
     runs
   }
 
-  val ycsbTuningRange = (1 to 20).map(Math.pow(2, _).toInt)
-  val tpccTuningRange = (1 to 9).map(Math.pow(2, _).toInt)
+  val ycsbTuningRange = (1 to 17).map(Math.pow(2, _).toInt)
+  val tpccTuningRange = (2 to 7) ++ (3 to 9).map(Math.pow(2, _).toInt)
 
   ExperimentSuite("Tuning", "Tuning thresholds") {
     runs: ArrayBuffer[Experiment] =>
@@ -601,17 +658,16 @@ object ExperimentsMain extends App {
       implicit val tuningConfig = new CaracalTuningConfig(splittingThreshold)
       runs ++= tuningTpccExperiments()
     }
-
   }
   
-  ExperimentSuite("TestOpt", "Test how our optimzations") {
+  ExperimentSuite("TestOpt", "Test how our optimzations work") {
     runs: ArrayBuffer[Experiment] =>
 
-    for (optLevel <- Seq(0, 1, 9)) {
+    for (optLevel <- Seq(0, 1, 2, 9)) {
       implicit val tuningConfig = new CaracalTuningConfig(-1, optLevel)
       for (cpu <- Seq(8, 16, 24, 32)) {
         runs ++= tuningYcsbExperiements(cpu)
-        runs ++= tuningTpccExperiments(cpu)
+        runs ++= tuningTpccExperiments(cpu, true)
       }
     }
   }
@@ -621,16 +677,22 @@ object ExperimentsMain extends App {
 
     for (cpu <- Seq(8, 16, 24, 32)) {
       for (singleWarehouse <- Seq(false, true)) {
-        implicit val config = new TpccExperimentConfig(cpu, cpu * 2, 1, -1, singleWarehouse)
-        // runs.append(new TpccCaracalExperiment())
+        val mem = if (singleWarehouse) 16 else cpu * 2
+        implicit val config = new TpccExperimentConfig(cpu, mem, 1, -1, singleWarehouse)
+        runs.append(new TpccCaracalExperiment())
+
         // runs.append(new TpccOSTOExperiment())
         // runs.append(new TpccMSTOExperiment())
-        runs.append(new TpccTSTOExperiment())
+        // runs.append(new TpccTSTOExperiment())
         // runs.append(new TpccFoedus2PLExperiment())
         // runs.append(new TpccErmiaExperiment())
 
+        Seq(PartitionMode.Bohm, PartitionMode.Granola, PartitionMode.PWV) foreach {
+          implicit mode =>
+          runs.append(new TpccPartitionExperiment())
+        }
+
         // Deprecated:
-        // runs.append(new TpccGranolaExperiment())
         // runs.append(new TpccFoedusMOCCExperiment())
         // runs.append(new TpccFoedusOCCExperiment())
       }
@@ -639,7 +701,6 @@ object ExperimentsMain extends App {
 
   ExperimentSuite("EpochSizeTuning", "Tpcc with different epoch sizes") {
     runs: ArrayBuffer[Experiment] =>
-
     
     for (epochSize <- 5000 to 100000 by 5000) {
       for (contention <- Seq(0, 7)) {
@@ -661,27 +722,31 @@ object ExperimentsMain extends App {
 
     def loadResults(cfg: YcsbExperimentConfig) = {
       implicit val config = cfg
-      a.value ++= new YcsbFoedus2PLExperiment().loadResults().value
+      
       a.value ++= new YcsbCaracalPieceExperiment().loadResults().value
       a.value ++= new YcsbMSTOExperiment().loadResults().value
       a.value ++= new YcsbOSTOExperiment().loadResults().value
-      a.value ++= new YcsbTSTOExperiment().loadResults().value
+      a.value ++= new YcsbFoedus2PLExperiment().loadResults().value
       a.value ++= new YcsbErmiaExperiment().loadResults().value
+      Seq(PartitionMode.Bohm, PartitionMode.Granola, PartitionMode.PWV) foreach {
+        implicit mode =>
+        a.value ++= new YcsbPartitionExperiment().loadResults().value
+      }
 
-      // a.value ++= new YcsbGranolaExperiment().loadResults().value
+      // a.value ++= new YcsbTSTOExperiment().loadResults().value
       // a.value ++= new YcsbFoedusExperiment().loadResults().value
       // a.value ++= new YcsbFoedusOCCExperiment().loadResults().value
       // a.value ++= new YcsbCaracalSerialExperiment().loadResults().value
     }
 
-    for (skewFactor <- Seq(0, 90)) {
+    for (skewFactor <- 0 :: 90 :: Nil) {
       for (contend <- Seq(true, false)) {
         loadResults(new YcsbExperimentConfig(0, 0, skewFactor, if (contend) 7 else 0))
       }
     }
-    for (skewFactor <- Seq(30, 60, 120)) {
-      loadResults(new YcsbExperimentConfig(0, 0, skewFactor, 0))
-    }
+    // for (skewFactor <- 30 :: 60 :: 120 :: Nil) {
+    //   loadResults(new YcsbExperimentConfig(0, 0, skewFactor, 0))
+    // }
 
     a
   }
@@ -699,7 +764,7 @@ object ExperimentsMain extends App {
   PlotSuite("TestOpt", "static/test-opt.json") { () =>
     val a = ujson.Arr()
 
-    for (optLevel <- Seq(0, 1, 2, 9)) {
+    for (optLevel <- 0 :: 1 :: 2 :: 9 :: Nil) {
       implicit val tuningConfig = new CaracalTuningConfig(-1, optLevel)
       val experiments = tuningYcsbExperiements() ++ tuningTpccExperiments()
       a.value ++= experiments.flatMap {
@@ -711,7 +776,7 @@ object ExperimentsMain extends App {
             if (optLevel == 0) "No Optimization"
             else if (optLevel == 1) "Batch Append"
             else if (optLevel == 2) "Caracal"
-            else if (optLevel == 9) "Bin Packing Placement"
+            else if (optLevel == 9) "Bin Packing"
             else "")
         }
         arr
@@ -790,8 +855,8 @@ object ExperimentsMain extends App {
     for (epochSize <- 5000 to 100000 by 5000) {
       val epochArr = ArrayBuffer[ujson.Value]()
 
-      for (contention <- Seq(0, 7)) {
-        for (skewFactor <- Seq(0, 90)) {
+      for (contention <- 0 :: 7 :: Nil) {
+        for (skewFactor <- 0 :: 90 :: Nil) {
           implicit val config = new YcsbExperimentConfig(32, 64, skewFactor, contention, false, epochSize)
           epochArr ++= (new YcsbCaracalPieceExperiment().loadResults().value).map {
             x =>
@@ -805,7 +870,7 @@ object ExperimentsMain extends App {
         }
       }
 
-      for (singleWarehouse <- Seq(true, false)) {
+      for (singleWarehouse <- true :: false :: Nil) {
         implicit val config = new TpccExperimentConfig(32, 64, 1, epochSize, singleWarehouse)
         epochArr ++= new TpccCaracalExperiment().loadResults().value.map {
           x =>
@@ -834,17 +899,21 @@ object ExperimentsMain extends App {
     implicit val config = new TpccExperimentConfig(0, 0)
 
     for (cpu <- Seq(8, 16, 24, 32)) {
-      for (singleWarehouse <- Seq(false, true)) {
+      for (singleWarehouse <- false :: true :: Nil) {
         implicit val config = new TpccExperimentConfig(cpu, cpu * 2, 1, -1, singleWarehouse)
         a.value ++= new TpccCaracalExperiment().loadResults().value
         a.value ++= new TpccOSTOExperiment().loadResults().value
-        a.value ++= new TpccTSTOExperiment().loadResults().value
         a.value ++= new TpccMSTOExperiment().loadResults().value
         a.value ++= new TpccFoedus2PLExperiment().loadResults().value
         a.value ++= new TpccErmiaExperiment().loadResults().value
+        Seq(PartitionMode.Bohm, PartitionMode.Granola, PartitionMode.PWV) foreach {
+          implicit pwv =>
+          a.value ++= new TpccPartitionExperiment().loadResults().value
+        }
       }
     }
 
+    // a.value ++= new TpccTSTOExperiment().loadResults().value
     /*
     for (load <- Seq(0, 200, 300, 400)) {
       implicit val hotspotLoad: Int = load

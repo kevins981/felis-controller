@@ -45,13 +45,15 @@ trait Experiment {
   }
   protected def waitToFinish() = {
     for (p <- processes) {
-      if (p.waitFor(5 * 60 * 1000) || p.exitCode() != 0) {
+      if (!p.waitFor(10 * 60 * 1000) || p.exitCode() != 0) {
         valid = false
       }
       if (p.isAlive()) {
         println("Process timed out. Killing forcibly.")
         p.destroyForcibly()
+        p.waitFor()
       }
+      println(s"Exit status ${p.exitCode()}")
       p.close()
     }
     processes.clear()
@@ -158,8 +160,7 @@ object ExperimentSuite {
     var progress = -1
     val tot = all.length
     val hostname = InetAddress.getLocalHost().getHostName()
-    val slkToken = System.getProperty("slackToken")
-    val slk = if (slkToken != null) Some(new SlackClient(slkToken)) else None
+    val slk = Option(System.getProperty("slackToken")).map(t => new SlackClient(t))
 
     val header = s"Experiments start running on ${hostname}. Total ${tot} experiments.\n${name}: ${desc}\n"
     val msg = slk.map { _.chat.postMessage("#db", header) }
@@ -210,7 +211,9 @@ object ExperimentSuite {
       case Some(s) => {
         val runs = ArrayBuffer[Experiment]()
         s.setup(runs)
-        run(s.name, s.description, runs)
+        val ntimes = Option(System.getProperty("repeat")).map(x => x.toInt).getOrElse(1)
+        for (i <- 0 until ntimes)
+          run(s.name, s.description, runs)
       }
       case None => {
         show()
