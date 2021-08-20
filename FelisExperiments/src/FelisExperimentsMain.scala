@@ -724,10 +724,10 @@ object ExperimentsMain extends App {
       implicit val config = cfg
       
       a.value ++= new YcsbCaracalPieceExperiment().loadResults().value
-      a.value ++= new YcsbMSTOExperiment().loadResults().value
-      a.value ++= new YcsbOSTOExperiment().loadResults().value
-      a.value ++= new YcsbFoedus2PLExperiment().loadResults().value
-      a.value ++= new YcsbErmiaExperiment().loadResults().value
+      // a.value ++= new YcsbMSTOExperiment().loadResults().value
+      // a.value ++= new YcsbOSTOExperiment().loadResults().value
+      // a.value ++= new YcsbFoedus2PLExperiment().loadResults().value
+      // a.value ++= new YcsbErmiaExperiment().loadResults().value
       Seq(PartitionMode.Bohm, PartitionMode.Granola, PartitionMode.PWV) foreach {
         implicit mode =>
         a.value ++= new YcsbPartitionExperiment().loadResults().value
@@ -902,10 +902,10 @@ object ExperimentsMain extends App {
       for (singleWarehouse <- false :: true :: Nil) {
         implicit val config = new TpccExperimentConfig(cpu, cpu * 2, 1, -1, singleWarehouse)
         a.value ++= new TpccCaracalExperiment().loadResults().value
-        a.value ++= new TpccOSTOExperiment().loadResults().value
-        a.value ++= new TpccMSTOExperiment().loadResults().value
-        a.value ++= new TpccFoedus2PLExperiment().loadResults().value
-        a.value ++= new TpccErmiaExperiment().loadResults().value
+        // a.value ++= new TpccOSTOExperiment().loadResults().value
+        // a.value ++= new TpccMSTOExperiment().loadResults().value
+        // a.value ++= new TpccFoedus2PLExperiment().loadResults().value
+        // a.value ++= new TpccErmiaExperiment().loadResults().value
         Seq(PartitionMode.Bohm, PartitionMode.Granola, PartitionMode.PWV) foreach {
           implicit pwv =>
           a.value ++= new TpccPartitionExperiment().loadResults().value

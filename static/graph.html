@@ -59,54 +59,18 @@
       <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="threshold1"></div></div>
       <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="threshold2"></div></div>
       <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="threshold3"></div></div>
-      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="hist0"></div></div>
-      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="hist1"></div></div>
-      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="hist2"></div></div>
-      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="hist3"></div></div>
+      <!-- <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="hist0"></div></div> -->
+      <!-- <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="hist1"></div></div> -->
+      <!-- <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="hist2"></div></div> -->
+      <!-- <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="hist3"></div></div> -->
 
-      <div class="pure-u-1">
-	<!--
-	<table class="pure-table">
-	  <thead>
-	    <tr>
-	      <th></th>
-	      <th>Rows Have More Versions Than Threshold (Red)</th>
-	      <th>Rows Triggered the Split</th>
-	    </tr>
-	  </thead>
-	  <tr>
-	    <td>YCSB+Skew</td>
-	    <td>0</td>
-	    <td>0</td>
-	  </tr>
-	  <tr>
-	    <td>YCSB+Contention</td>
-	    <td>77</td>
-	    <td>77</td>
-	  </tr>
-	  <tr>
-	    <td>YCSB+Contention+Skew</td>
-	    <td>84</td>
-	    <td>84</td>
-	  </tr>
-	  <tr>
-	    <td>TPC-C Single Warehouse</td>
-	    <td>15071</td>
-	    <td>12961</td>
-	  </tr>
-	</table>
-
-	<div>To generate LaTeX: copy the table to clipboard and go to <a href="https://www.tablesgenerator.com/">https://www.tablesgenerator.com/</a>.</div>
-	-->
-      </div>
-
-      <h1 class="pure-u-1-1">Memory</h1>
-      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem0"></div></div>
-      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem1"></div></div>
-      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem2"></div></div>
-      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem3"></div></div>
-      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem4"></div></div>
-      <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem5"></div></div>
+      <!-- <h1 class="pure-u-1-1">Memory</h1> -->
+      <!-- <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem0"></div></div> -->
+      <!-- <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem1"></div></div> -->
+      <!-- <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem2"></div></div> -->
+      <!-- <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem3"></div></div> -->
+      <!-- <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem4"></div></div> -->
+      <!-- <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="mem5"></div></div> -->
 
       <h1 class="pure-u-1-1">Latency</h1>
       <div class="pure-u-1 pure-u-md-1-2 pure-u-lg-1-4"><div id="latency0"></div></div>
@@ -247,13 +211,13 @@
 	  }
       }
 
-      // let ycsb_colours = [caracal_colour, bohm_colour, bohm_pwv_colour, granola_colour]
-      // let ycsb_baselines = ['nodep_caracal-pieces', 'nodep_bohm', 'nodep_pwv', 'nodep_granola']
-      // let ycsb_ymax = [2500000, 2500000, 1000000, 500000]
+      let ycsb_colours = [caracal_colour, bohm_colour, bohm_pwv_colour, granola_colour]
+      let ycsb_baselines = ['nodep_caracal-pieces', 'nodep_bohm', 'nodep_pwv', 'nodep_granola']
+      let ycsb_ymax = [2500000, 2500000, 1000000, 500000]
       
-      let ycsb_colours = [caracal_colour, osto_colour, msto_colour, ermia_colour, foedus_2pl_colour]
-      let ycsb_baselines = ['nodep_caracal-pieces', 'dep_osto', 'dep_msto', 'dep_ermia', 'dep_foedus-2pl']
-      let ycsb_ymax = [4000000, 2500000, 1000000, 500000]
+      // let ycsb_colours = [caracal_colour, osto_colour, msto_colour, ermia_colour, foedus_2pl_colour]
+      // let ycsb_baselines = ['nodep_caracal-pieces', 'dep_osto', 'dep_msto', 'dep_ermia', 'dep_foedus-2pl']
+      // let ycsb_ymax = [4000000, 2500000, 1000000, 500000]
       
       new Graph('ycsb.json', 'LowContention NoSkew',
 		ycsb_colours,
@@ -292,13 +256,13 @@
 		ycsb_baselines.map(x => 'cont7_skew90_' + x),
 		[0, ycsb_ymax[3]]).plot('#ycsbc90')
 
-      // let tpcc_colours = [caracal_colour, bohm_colour, bohm_pwv_colour, granola_colour]
-      // let tpcc_baselines = ['caracal', 'bohm', 'pwv', 'granola']
-      // let tpcc_ymax = [1500000, 600000]
+      let tpcc_colours = [caracal_colour, bohm_colour, bohm_pwv_colour, granola_colour]
+      let tpcc_baselines = ['caracal', 'bohm', 'pwv', 'granola']
+      let tpcc_ymax = [1500000, 600000]
       
-      let tpcc_colours = [caracal_colour, osto_colour, msto_colour, ermia_colour, foedus_2pl_colour]
-      let tpcc_baselines = ['caracal', 'osto', 'msto', 'ermia', 'foedus-2pl']
-      let tpcc_ymax = [2500000, 625000]
+      // let tpcc_colours = [caracal_colour, osto_colour, msto_colour, ermia_colour, foedus_2pl_colour]
+      // let tpcc_baselines = ['caracal', 'osto', 'msto', 'ermia', 'foedus-2pl']
+      // let tpcc_ymax = [2500000, 625000]
       
 
       new Graph('single-tpcc.json', 'Default TPC-C',
@@ -441,117 +405,117 @@
     .transformFilter('indexof(datum.attribute, "tpcc_caracal") != -1')
     .plot('#latency2')
 
-      class HistGraph {
-	  constructor(url, title, split) {
-	      this.obj = {
-		  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-		  'width': 175,
-		  'height': 120,
-		  "data": {},
-		  "layer": [{
-		      "mark": {
-			  "type": "bar",
-			  "color": "#3277c7"
-		      },
-		      "transform": []
-		  }, {
-		      "mark": {
-			  "type": "bar",
-			  "color": "red"
-		      },
-		      "transform": []
-		  }],
-		  "encoding": {
-		      "x": {
-			  "field": "bin_start",
-			  "bin": {
-			      "binned": true
-			  },
-			  "scale": {"type": "log"},
-			  "type": "quantitative",
-			  "axis": {
-			      "values": _.range(0, 18).map(x => Math.pow(2, x)),
-			      "labelExpr": "if(datum.value > 512, datum.value / 1024 + 'K', datum.value)",
-			      "title": "Number of Versions"
-			  }
-		      },
-		      "x2": {"field": "bin_end"},
-		      "y": {
-			  "field": "count",
-			  "scale": {"type": "symlog"},
-			  "type": "quantitative",
-			  "axis": {
-			      "values": _.range(0, 18).map(x => Math.pow(16, x)),
-			      "title": "Count/100K Txn"
-			  }
-		      },
-		  }
-	      }
-	      let overlay = {
-		  'data': {'url': url},
-	      }
-	      if (q.has('showTitle'))
-		  overlay['title'] = title
-	      _.mergeWith(this.obj, overlay)
+      // class HistGraph {
+      // 	  constructor(url, title, split) {
+      // 	      this.obj = {
+      // 		  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+      // 		  'width': 175,
+      // 		  'height': 120,
+      // 		  "data": {},
+      // 		  "layer": [{
+      // 		      "mark": {
+      // 			  "type": "bar",
+      // 			  "color": "#3277c7"
+      // 		      },
+      // 		      "transform": []
+      // 		  }, {
+      // 		      "mark": {
+      // 			  "type": "bar",
+      // 			  "color": "red"
+      // 		      },
+      // 		      "transform": []
+      // 		  }],
+      // 		  "encoding": {
+      // 		      "x": {
+      // 			  "field": "bin_start",
+      // 			  "bin": {
+      // 			      "binned": true
+      // 			  },
+      // 			  "scale": {"type": "log"},
+      // 			  "type": "quantitative",
+      // 			  "axis": {
+      // 			      "values": _.range(0, 18).map(x => Math.pow(2, x)),
+      // 			      "labelExpr": "if(datum.value > 512, datum.value / 1024 + 'K', datum.value)",
+      // 			      "title": "Number of Versions"
+      // 			  }
+      // 		      },
+      // 		      "x2": {"field": "bin_end"},
+      // 		      "y": {
+      // 			  "field": "count",
+      // 			  "scale": {"type": "symlog"},
+      // 			  "type": "quantitative",
+      // 			  "axis": {
+      // 			      "values": _.range(0, 18).map(x => Math.pow(16, x)),
+      // 			      "title": "Count/100K Txn"
+      // 			  }
+      // 		      },
+      // 		  }
+      // 	      }
+      // 	      let overlay = {
+      // 		  'data': {'url': url},
+      // 	      }
+      // 	      if (q.has('showTitle'))
+      // 		  overlay['title'] = title
+      // 	      _.mergeWith(this.obj, overlay)
 
-	      if (split) {
-		  this.obj['layer'][0]["transform"][0] = {"filter": `datum.bin_start < ${split}`}
-		  this.obj['layer'][1]["transform"][0] = {"filter": `datum.bin_start >= ${split}`}
-	      } else {
-		  this.obj['layer'].pop()
-	      }
-	  }
-	  plot(selector) {
-	      vegaEmbed(selector, this.obj, {'mode': 'vega-lite', 'renderer': 'svg'})
-	  }
-      }
+      // 	      if (split) {
+      // 		  this.obj['layer'][0]["transform"][0] = {"filter": `datum.bin_start < ${split}`}
+      // 		  this.obj['layer'][1]["transform"][0] = {"filter": `datum.bin_start >= ${split}`}
+      // 	      } else {
+      // 		  this.obj['layer'].pop()
+      // 	      }
+      // 	  }
+      // 	  plot(selector) {
+      // 	      vegaEmbed(selector, this.obj, {'mode': 'vega-lite', 'renderer': 'svg'})
+      // 	  }
+      // }
 
-      new HistGraph('ycsb-cont0-skew90-hist.csv', 'YCSB+Skew').plot('#hist0')
-      new HistGraph('ycsb-cont7-noskew-hist.csv', 'YCSB+Contention', 1024).plot('#hist1')
-      new HistGraph('ycsb-cont7-skew90-hist.csv', 'YCSB+Contention+Skew', 1024).plot('#hist2')
-      new HistGraph('tpcc-single-hist.csv', 'TPC-C Single Warehouse Versions', 8).plot('#hist3')
+      // new HistGraph('ycsb-cont0-skew90-hist.csv', 'YCSB+Skew').plot('#hist0')
+      // new HistGraph('ycsb-cont7-noskew-hist.csv', 'YCSB+Contention', 1024).plot('#hist1')
+      // new HistGraph('ycsb-cont7-skew90-hist.csv', 'YCSB+Contention+Skew', 1024).plot('#hist2')
+      // new HistGraph('tpcc-single-hist.csv', 'TPC-C Single Warehouse Versions', 8).plot('#hist3')
 
-      class MemGraph extends Graph {
-	  constructor(url, title, colours) {
-	      super(url, title, colours)
-	      this.obj['layer'].shift()
-	      this.obj['layer'].pop()
-	      this.obj['layer'].pop()
-	      this.obj['layer'][0] = {
-		  'mark': {
-		      'type': 'line',
-		      'point': false,
-		  },
-		  'encoding': {
-		      'x': {'field': 't', 'title': 'Epochs', 'type': 'quantitative', 'axis': {
-			  'values': _.range(0, 200, 20),
-		      }},
-		      'y': {
-			  'field': 'mem', 'type': 'quantitative', 'title': 'Memory Usage',
-			  'axis': {
-			      'labelExpr': 'format(datum.value / 1024 / 1024 / 1024, ",.2f") + "G"',
-			      'values': _.range(1, 5).map(x => x * 8 * 1024 * 1024 * 1024),
-			  },'scale': {
-			      'domain': [0, 32 * 1024 * 1024 * 1024],
-			  }},
-		      'color': {'field': 'gclabel', 'type': 'nominal', 'title': ''},
-		  },
-		  'transform': [{
-			  'calculate': 'if(datum.gc == -1, "No Major GC", if(datum.gc == 8, "Minor+Major GC", "Optimal"))',
-			  'as': 'gclabel'
-		      },],
-	      }
-	      this.obj['encoding'] = {}
-	  }
-      }
+      // class MemGraph extends Graph {
+      // 	  constructor(url, title, colours) {
+      // 	      super(url, title, colours)
+      // 	      this.obj['layer'].shift()
+      // 	      this.obj['layer'].pop()
+      // 	      this.obj['layer'].pop()
+      // 	      this.obj['layer'][0] = {
+      // 		  'mark': {
+      // 		      'type': 'line',
+      // 		      'point': false,
+      // 		  },
+      // 		  'encoding': {
+      // 		      'x': {'field': 't', 'title': 'Epochs', 'type': 'quantitative', 'axis': {
+      // 			  'values': _.range(0, 200, 20),
+      // 		      }},
+      // 		      'y': {
+      // 			  'field': 'mem', 'type': 'quantitative', 'title': 'Memory Usage',
+      // 			  'axis': {
+      // 			      'labelExpr': 'format(datum.value / 1024 / 1024 / 1024, ",.2f") + "G"',
+      // 			      'values': _.range(1, 5).map(x => x * 8 * 1024 * 1024 * 1024),
+      // 			  },'scale': {
+      // 			      'domain': [0, 32 * 1024 * 1024 * 1024],
+      // 			  }},
+      // 		      'color': {'field': 'gclabel', 'type': 'nominal', 'title': ''},
+      // 		  },
+      // 		  'transform': [{
+      // 			  'calculate': 'if(datum.gc == -1, "No Major GC", if(datum.gc == 8, "Minor+Major GC", "Optimal"))',
+      // 			  'as': 'gclabel'
+      // 		      },],
+      // 	      }
+      // 	      this.obj['encoding'] = {}
+      // 	  }
+      // }
 
-      new MemGraph('ycsb-cont0-noskew-mem.csv', 'Memory for YCSB', alt_graph_colours).plot('#mem0')
-      new MemGraph('ycsb-cont0-skew90-mem.csv', 'Memory for YCSB+Skew', alt_graph_colours).plot('#mem1')
-      new MemGraph('ycsb-cont7-noskew-mem.csv', 'Memory for YCSB+Contention', alt_graph_colours).plot('#mem2')
-      new MemGraph('ycsb-cont7-skew90-mem.csv', 'Memory for YCSB+Contention+Skew', alt_graph_colours).plot('#mem3')
+      // new MemGraph('ycsb-cont0-noskew-mem.csv', 'Memory for YCSB', alt_graph_colours).plot('#mem0')
+      // new MemGraph('ycsb-cont0-skew90-mem.csv', 'Memory for YCSB+Skew', alt_graph_colours).plot('#mem1')
+      // new MemGraph('ycsb-cont7-noskew-mem.csv', 'Memory for YCSB+Contention', alt_graph_colours).plot('#mem2')
+      // new MemGraph('ycsb-cont7-skew90-mem.csv', 'Memory for YCSB+Contention+Skew', alt_graph_colours).plot('#mem3')
 
-      new MemGraph('tpcc-32w-mem.csv', 'Memory for TPC-C', alt_graph_colours).plot('#mem4')
-      new MemGraph('tpcc-1w-mem.csv', 'Memory for TPC-C Single Warehouse', alt_graph_colours).plot('#mem5')
+      // new MemGraph('tpcc-32w-mem.csv', 'Memory for TPC-C', alt_graph_colours).plot('#mem4')
+      // new MemGraph('tpcc-1w-mem.csv', 'Memory for TPC-C Single Warehouse', alt_graph_colours).plot('#mem5')
 
       class DistributedGraph extends Graph {
 	  constructor(url, colours, ydomain, xdomain) {
